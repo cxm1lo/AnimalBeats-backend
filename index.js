@@ -28,7 +28,7 @@ app.use(bodyParser.json());
 let conexion;
 (async () => {
   try {
-    conexion = await mysql.createPool({
+    conexion = mysql.createPool({
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
       password: process.env.DB_PASS,
@@ -36,8 +36,11 @@ let conexion;
       port: process.env.DB_PORT,
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0,
     });
+
     app.locals.connection = conexion;
     console.log('Conexión a la base de datos exitosa');
   } catch (error) {
