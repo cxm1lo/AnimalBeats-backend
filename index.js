@@ -280,6 +280,25 @@ app.put('/usuario/Suspender/:n_documento', async (req, res) => {
   }
 });
 
+app.put('/usuario/Reactivar/:n_documento', async (req, res) => {
+  const { n_documento } = req.params;
+
+  const sqlUpdate = `UPDATE Usuarios SET estado = 'Activo' WHERE n_documento = ?`;
+
+  try {
+    const [resultado] = await conexion.execute(sqlUpdate, [n_documento]);
+
+    if (resultado.affectedRows > 0) {
+      res.json({ mensaje: 'Usuario reactivado correctamente' });
+    } else {
+      res.json('Usuario no encontrado');
+    }
+  } catch (err) {
+    console.error('Error al reactivar usuario:', err);
+    res.status(500).json({ error: 'Error al reactivar usuario' });
+  }
+});
+
 //Ruta Tabla de Roles
 app.get('/roles/Listado', async (req, res) => {
   const sqlQuery = `
@@ -1191,7 +1210,7 @@ app.delete('/recordatorios/eliminar/:id', async (req, res) => {
 // Rutas de la API
 const PORT = process.env.DB_PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor escuchando en el puerto: ${PORT}`);
+  console.log(`Servidor escuchando en el puerto: ${PORT}`);
 });
 
 
