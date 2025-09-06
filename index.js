@@ -61,7 +61,7 @@ app.use((req, res, next) => {
 
 
 /* ==========================
-*  Rutas de gestión de usuarios
+*  Rutas de gestión de Usuarios
 * ========================== */
 
 // Registro de usuario
@@ -168,7 +168,7 @@ app.post('/login', async (req, res) => {
 });
 
 
-// Listar usuarios
+// Listar Usuarios
 app.get('/usuario/Listado', async (req, res) => {
   const sqlQuery = `
     SELECT u.n_documento, u.nombre, u.correoelectronico, 
@@ -179,10 +179,10 @@ app.get('/usuario/Listado', async (req, res) => {
   `;
   try {
     const [resultado] = await conexion.query(sqlQuery);
-    res.json({ usuarios: resultado });
+    res.json({ Usuarios: resultado });
   } catch (err) {
-    console.error('Error al obtener usuarios:', err);
-    res.status(500).json({ error: 'Error al obtener usuarios' });
+    console.error('Error al obtener Usuarios:', err);
+    res.status(500).json({ error: 'Error al obtener Usuarios' });
   }
 });
 
@@ -316,16 +316,16 @@ app.get('/admin/dashboard', async (req, res) => {
   try {
     // Obtener el primer administrador registrado 
     const [adminRows] = await conexion.execute(
-      "SELECT nombre, correoelectronico FROM usuarios WHERE id_rol = ?", [1]
+      "SELECT nombre, correoelectronico FROM Usuarios WHERE id_rol = ?", [1]
     );
 
     if (adminRows.length === 0) {
       return res.status(404).json({ error: "No se encontró ningún admin" });
     }
 
-    // Contar total de usuarios que sean clientes o veterinarios 
+    // Contar total de Usuarios que sean clientes o veterinarios 
     const [countRows] = await conexion.execute(
-      "SELECT COUNT(*) AS total FROM usuarios WHERE id_rol IN (2, 3)"
+      "SELECT COUNT(*) AS total FROM Usuarios WHERE id_rol IN (2, 3)"
     );
 
     const totalClientes = countRows[0].total;
@@ -351,7 +351,7 @@ app.get('/cliente/dashboard/:n_documento', async (req, res) => {
 
     //Obtener datos del cliente
     const [clienteRows] = await conexion.execute(
-      "SELECT nombre, correoelectronico FROM usuarios WHERE n_documento = ? AND id_rol = 2",
+      "SELECT nombre, correoelectronico FROM Usuarios WHERE n_documento = ? AND id_rol = 2",
       [n_documento]
     );
 
@@ -404,7 +404,7 @@ app.get('/veterinario/dashboard/:n_documento', async (req, res) => {
 
     // Datos del veterinario
     const [veterinarioRows] = await conexion.execute(
-      "SELECT nombre, correoelectronico FROM usuarios WHERE n_documento = ? AND id_rol = 3",
+      "SELECT nombre, correoelectronico FROM Usuarios WHERE n_documento = ? AND id_rol = 3",
       [n_documento]
     );
 
