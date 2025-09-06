@@ -718,7 +718,7 @@ app.get('/Razas/Listado/:id', async (req, res) => {
   const id = req.params.id;
   try {
     const [resultado] = await conexion.execute(
-      "SELECT * FROM raza WHERE id_especie = ?", [id]
+      "SELECT * FROM Raza WHERE id_especie = ?", [id]
     );
     if (resultado.length > 0) {
       res.json(resultado);
@@ -736,7 +736,7 @@ app.get('/Razas/Listado/:id', async (req, res) => {
 app.get('/Razas/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await conexion.query("SELECT * FROM raza WHERE id = ?", [id]);
+    const [rows] = await conexion.query("SELECT * FROM Raza WHERE id = ?", [id]);
     if (rows.length > 0) {
       res.json(rows[0]);
     } else {
