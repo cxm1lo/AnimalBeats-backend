@@ -850,7 +850,7 @@ app.put('/Razas/Actualizar/:id', uploadRazas.single('imagen'), async (req, res) 
       }
     } else {
       // Actualiza sin cambiar imagen
-      const sql = "UPDATE raza SET raza = ?, descripcion = ? WHERE id = ?";
+      const sql = "UPDATE Raza SET raza = ?, descripcion = ? WHERE id = ?";
       const [resultado] = await conexion.execute(sql, [raza, descripcion, id]);
       if (resultado.affectedRows > 0) {
         res.json({ mensaje: "Raza actualizada correctamente", resultado });
