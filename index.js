@@ -381,6 +381,7 @@ app.delete('/roles/Eliminar/:id', async (req, res) => {
 // ==========================
 // Perfil Veterinario
 // ==========================
+app.use('/uploads/veterinarios', express.static('uploads/veterinarios'));
 
 // Crear veterinario
 app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
@@ -390,7 +391,8 @@ app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
       return res.status(400).json({ mensaje: 'Faltan campos obligatorios' });
     }
 
-    const imagen_url = req.file ? `/uploads/veterinarios/${req.file.filename}` : null;
+    // Guardar la ruta
+    const imagen_url = req.file ? req.file.path : null;
 
     const sql = `INSERT INTO Veterinarios 
       (nombre_completo, estudios_especialidad, edad, altura, anios_experiencia, imagen_url)
@@ -405,14 +407,14 @@ app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
       imagen_url,
     ]);
 
-    res.status(201).json({ mensaje: 'Veterinario creado exitosamente', id: resultado.insertId });
-  } catch (error) {
-    console.error('Error al crear veterinario:', error);
-    res.status(500).json({ mensaje: 'Error al crear veterinario' });
+    res.status(201).json({ mensaje: 'Veterinario creado correctamente', id: resultado.insertId });
+  } catch (err) {
+    console.error('Error al crear veterinario:', err);
+    res.status(500).json({ error: 'Error al crear veterinario' });
   }
 });
 
-// Listar
+// Listar veterinarios
 app.get('/veterinarios', async (req, res) => {
   try {
     const [rows] = await conexion.execute('SELECT * FROM Veterinarios ORDER BY creado_en DESC');
@@ -423,7 +425,7 @@ app.get('/veterinarios', async (req, res) => {
   }
 });
 
-// Consultar 
+// Consultar veterinario por id
 app.get('/veterinarios/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -440,10 +442,25 @@ app.get('/veterinarios/:id', async (req, res) => {
   }
 });
 
-// Eliminar
+// Eliminar veterinario
 app.delete('/veterinarios/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    //Obtiene la imagen para borrarla del servidor
+    const [rows] = await conexion.execute('SELECT imagen_url FROM Veterinarios WHERE id_veterinario = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ mensaje: 'Veterinario no encontrado' });
+    }
+
+    const imagenPath = rows[0].imagen_url?.replace(`${process.env.SERVER_URL || 'http://localhost:3000'}/`, '');
+    if (imagenPath) {
+      const fs = require('fs');
+      fs.unlink(imagenPath, (err) => {
+        if (err) console.warn('No se pudo eliminar la imagen:', err.message);
+      });
+    }
+
     const [resultado] = await conexion.execute('DELETE FROM Veterinarios WHERE id_veterinario = ?', [id]);
 
     if (resultado.affectedRows === 0) {
@@ -778,8 +795,9 @@ app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
 // Actualizar especie (nombre y opcional imagen)
 app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) => {
   const { id } = req.params;
-  const especie = req.body.Especie || req.body.especie;
-  const imagen = req.file ? req.file.path : null;
+
+  const especie = req.body.Especie || req.body.especie; // según cómo envíes el campo
+  const imagen = req.file ? req.file.path : null; // si hay imagen nueva en Cloudinary
 
   try {
     let sql, params;
