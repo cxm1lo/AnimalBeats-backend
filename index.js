@@ -280,6 +280,9 @@ app.put('/usuario/Suspender/:n_documento', async (req, res) => {
   }
 });
 
+
+//Reactivar Usuario
+
 app.put('/usuario/Reactivar/:n_documento', async (req, res) => {
   const { n_documento } = req.params;
 
@@ -298,6 +301,27 @@ app.put('/usuario/Reactivar/:n_documento', async (req, res) => {
     res.status(500).json({ error: 'Error al reactivar usuario' });
   }
 });
+
+//Usuario Pendiente
+app.put('/usuario/Pendiente/:n_documento', async (req, res) => {
+  const { n_documento } = req.params;
+
+  const sqlUpdate = `UPDATE Usuarios SET estado = 'Pendiente' WHERE n_documento = ?`;
+
+  try {
+    const [resultado] = await conexion.execute(sqlUpdate, [n_documento]);
+
+    if (resultado.affectedRows > 0) {
+      res.json({ mensaje: 'Usuario puesto en estado pendiente correctamente' });
+    } else {
+      res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    }
+  } catch (err) {
+    console.error('Error al poner usuario en pendiente:', err);
+    res.status(500).json({ error: 'Error al poner usuario en pendiente' });
+  }
+});
+
 
 //Ruta Tabla de Roles
 app.get('/roles/Listado', async (req, res) => {
