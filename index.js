@@ -732,28 +732,35 @@ app.get('/recordatorio/mascota/:id', async (req, res) => {
 });
 
 
-// Obtener todas las especies
+// Listar todas las especies
 app.get('/Especies/Listado', async (req, res) => {
   try {
     const [especies] = await conexion.query("SELECT * FROM Especie");
-    if (especies.length > 0) {
-      res.json(especies);
-    } else {
-      res.json('No hay especies registradas');
-    }
+    if (especies.length > 0) res.json(especies);
+    else res.json({ mensaje: 'No hay especies registradas' });
   } catch (err) {
     console.error('Error al obtener especies:', err);
     res.status(500).json({ error: 'Error al obtener especies' });
   }
 });
 
+// Obtener una especie por ID
+app.get('/Especies/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await conexion.query("SELECT * FROM Especie WHERE id = ?", [id]);
+    if (rows.length > 0) res.json(rows[0]);
+    else res.status(404).json({ mensaje: 'Especie no encontrada' });
+  } catch (err) {
+    console.error('Error al obtener especie:', err);
+    res.status(500).json({ error: 'Error al obtener especie' });
+  }
+});
 
-app.use('/imagenes_especies', express.static('public/imagenes_especies'));
-
-// Registrar especie
+// Crear especie con imagen en Cloudinary
 app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
   const { Especie } = req.body;
-  const imagen = req.file ? req.file.path : null; // URL pública de Cloudinary
+  const imagen = req.file ? req.file.path : null; // URL de Cloudinary
 
   try {
     const sql = "INSERT INTO Especie (especie, imagen) VALUES (?, ?)";
@@ -765,52 +772,27 @@ app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
   }
 });
 
-
-app.get('/Especies/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const [rows] = await conexion.query("SELECT * FROM Especie WHERE id = ?", [id]);
-    if (rows.length > 0) {
-      res.json(rows[0]); // devuelve el primer objeto
-    } else {
-      res.status(404).json({ mensaje: 'Especie no encontrada' });
-    }
-  } catch (err) {
-    console.error('Error al obtener especie:', err);
-    res.status(500).json({ error: 'Error al obtener especie' });
-  }
-});
-
-// Actualizar especie con posible imagen nueva
+// Actualizar especie (nombre y opcional imagen)
 app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) => {
   const { id } = req.params;
-  const especie = req.body.Especie || req.body.especie; // según cómo envíes el campo
-  let imagen = null;
-
-  if (req.file) {
-  imagen = req.file.path; // URL pública de Cloudinary
-  }
-
+  const especie = req.body.Especie || req.body.especie;
+  const imagen = req.file ? req.file.path : null;
 
   try {
+    let sql, params;
     if (imagen) {
-      // Actualiza nombre y imagen
-      const sql = "UPDATE Especie SET especie = ?, imagen = ? WHERE id = ?";
-      const [resultado] = await conexion.execute(sql, [especie, imagen, id]);
-      if (resultado.affectedRows > 0) {
-        res.json({ mensaje: "Especie actualizada correctamente", resultado });
-      } else {
-        res.status(404).json({ mensaje: "No hay especie registrada con ese ID" });
-      }
+      sql = "UPDATE Especie SET especie = ?, imagen = ? WHERE id = ?";
+      params = [especie, imagen, id];
     } else {
-      // Actualiza solo nombre si no hay imagen nueva
-      const sql = "UPDATE Especie SET especie = ? WHERE id = ?";
-      const [resultado] = await conexion.execute(sql, [especie, id]);
-      if (resultado.affectedRows > 0) {
-        res.json({ mensaje: "Especie actualizada correctamente", resultado });
-      } else {
-        res.status(404).json({ mensaje: "No hay especie registrada con ese ID" });
-      }
+      sql = "UPDATE Especie SET especie = ? WHERE id = ?";
+      params = [especie, id];
+    }
+
+    const [resultado] = await conexion.execute(sql, params);
+    if (resultado.affectedRows > 0) {
+      res.json({ mensaje: "Especie actualizada correctamente", resultado });
+    } else {
+      res.status(404).json({ mensaje: "No hay especie registrada con ese ID" });
     }
   } catch (err) {
     console.error('Error al actualizar especie:', err);
@@ -834,52 +816,43 @@ app.delete('/Especies/Eliminar/:id', async (req, res) => {
   }
 });
 
+// ----------------- RAZAS -----------------
 
 const uploadRazas = multer({ storage });
 
-// Servir imágenes estáticas de razas
-app.use('/imagenes_razas', express.static('public/imagenes_razas'));
-
-// Conseguir las razas dentro de la especie
+// Listar razas de una especie
 app.get('/Razas/Listado/:id', async (req, res) => {
-  const id = req.params.id;
+  const { id } = req.params;
   try {
     const [resultado] = await conexion.execute(
       "SELECT * FROM Raza WHERE id_especie = ?", [id]
     );
-    if (resultado.length > 0) {
-      res.json(resultado);
-    } else {
-      res.json({ mensaje: 'No hay razas registradas' });
-    }
-  } catch (error) {
-    console.error('Error al obtener las razas:', error);
-    res.status(500).json({ error: 'Error al obtener las razas' });
+    if (resultado.length > 0) res.json(resultado);
+    else res.json({ mensaje: 'No hay razas registradas' });
+  } catch (err) {
+    console.error('Error al obtener razas:', err);
+    res.status(500).json({ error: 'Error al obtener razas' });
   }
 });
 
-
-// Obtener info de una raza por ID
+// Obtener una raza por ID
 app.get('/Razas/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const [rows] = await conexion.query("SELECT * FROM Raza WHERE id = ?", [id]);
-    if (rows.length > 0) {
-      res.json(rows[0]);
-    } else {
-      res.status(404).json({ mensaje: 'Raza no encontrada' });
-    }
+    if (rows.length > 0) res.json(rows[0]);
+    else res.status(404).json({ mensaje: 'Raza no encontrada' });
   } catch (err) {
     console.error('Error al obtener raza:', err);
     res.status(500).json({ error: 'Error al obtener raza' });
   }
 });
 
-// Agregar raza
-app.post('/Razas/Crear/:id', upload.single('imagen'), async (req, res) => {
+// Crear raza con imagen en Cloudinary
+app.post('/Razas/Crear/:id', uploadRazas.single('imagen'), async (req, res) => {
   const { id } = req.params;
   const { raza, descripcion } = req.body;
-  const imagen = req.file ? req.file.path : null; // URL pública de Cloudinary
+  const imagen = req.file ? req.file.path : null;
 
   try {
     const sql = "INSERT INTO Raza (raza, descripcion, imagen, id_especie) VALUES (?, ?, ?, ?)";
@@ -891,36 +864,27 @@ app.post('/Razas/Crear/:id', upload.single('imagen'), async (req, res) => {
   }
 });
 
-
-// Actualizar raza con posible imagen nueva
+// Actualizar raza (nombre, descripción y opcional imagen)
 app.put('/Razas/Actualizar/:id', uploadRazas.single('imagen'), async (req, res) => {
   const { id } = req.params;
   const { raza, descripcion } = req.body;
-  let imagen = null;
-
-  if (req.file) {
-    imagen = req.file.filename;
-  }
+  const imagen = req.file ? req.file.path : null;
 
   try {
+    let sql, params;
     if (imagen) {
-      // Actualiza todos los campos incluyendo imagen
-      const sql = "UPDATE Raza SET raza = ?, descripcion = ?, imagen = ? WHERE id = ?";
-      const [resultado] = await conexion.execute(sql, [raza, descripcion, imagen, id]);
-      if (resultado.affectedRows > 0) {
-        res.json({ mensaje: "Raza actualizada correctamente", resultado });
-      } else {
-        res.status(404).json({ mensaje: "No hay raza registrada con ese ID" });
-      }
+      sql = "UPDATE Raza SET raza = ?, descripcion = ?, imagen = ? WHERE id = ?";
+      params = [raza, descripcion, imagen, id];
     } else {
-      // Actualiza sin cambiar imagen
-      const sql = "UPDATE Raza SET raza = ?, descripcion = ? WHERE id = ?";
-      const [resultado] = await conexion.execute(sql, [raza, descripcion, id]);
-      if (resultado.affectedRows > 0) {
-        res.json({ mensaje: "Raza actualizada correctamente", resultado });
-      } else {
-        res.status(404).json({ mensaje: "No hay raza registrada con ese ID" });
-      }
+      sql = "UPDATE Raza SET raza = ?, descripcion = ? WHERE id = ?";
+      params = [raza, descripcion, id];
+    }
+
+    const [resultado] = await conexion.execute(sql, params);
+    if (resultado.affectedRows > 0) {
+      res.json({ mensaje: "Raza actualizada correctamente", resultado });
+    } else {
+      res.status(404).json({ mensaje: "No hay raza registrada con ese ID" });
     }
   } catch (err) {
     console.error('Error al actualizar raza:', err);
@@ -930,20 +894,17 @@ app.put('/Razas/Actualizar/:id', uploadRazas.single('imagen'), async (req, res) 
 
 // Eliminar raza
 app.delete('/Razas/Eliminar/:id', async (req, res) => {
-  const connection = req.app.locals.connection;
-  const id = req.params.id;
+  const { id } = req.params;
   try {
-    const [resultado] = await connection.execute(
-      "DELETE FROM Raza WHERE id = ?", [id]
-    );
+    const [resultado] = await conexion.execute("DELETE FROM Raza WHERE id = ?", [id]);
     if (resultado.affectedRows > 0) {
       res.json({ mensaje: 'Raza eliminada correctamente', resultado });
     } else {
       res.status(404).json({ mensaje: 'No se encontró la raza para eliminar' });
     }
-  } catch (error) {
-    console.error('Error al eliminar la raza:', error);
-    res.status(500).json({ error: 'Error al eliminar la raza' });
+  } catch (err) {
+    console.error('Error al eliminar raza:', err);
+    res.status(500).json({ error: 'Error al eliminar raza' });
   }
 });
 
