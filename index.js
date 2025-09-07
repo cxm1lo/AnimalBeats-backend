@@ -3,10 +3,10 @@ require('dotenv').config();
 console.log("Variables de entorno:");
 console.log("DB_HOST:", process.env.DB_HOST);
 console.log("DB_USER:", process.env.DB_USER);
-console.log("DB_PASS:", process.env.DB_PASS ? "*****" : null);
+console.log("DB_PASS:", process.env.DB_PASS ? "****" : null);
 console.log("DB_NAME:", process.env.DB_NAME);
 console.log("DB_PORT:", process.env.DB_PORT);
-console.log("JWT_SECRET:", process.env.JWT_SECRET ? "*****" : null);
+console.log("JWT_SECRET:", process.env.JWT_SECRET ? "****" : null);
 
 const express = require('express');
 const jwt = require('jsonwebtoken');
