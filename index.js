@@ -818,7 +818,7 @@ app.post('/Razas/Crear/:id', uploadRazas.single('imagen'), async (req, res) => {
   const imagen = req.file ? req.file.filename : null;
 
   try {
-    const sql = "INSERT INTO raza (raza, descripcion, imagen, id_especie) VALUES (?, ?, ?, ?)";
+    const sql = "INSERT INTO Raza (raza, descripcion, imagen, id_especie) VALUES (?, ?, ?, ?)";
     const [resultado] = await conexion.execute(sql, [raza, descripcion, imagen, id]);
     res.status(201).json({ mensaje: "Raza ingresada correctamente", resultado });
   } catch (err) {
@@ -841,7 +841,7 @@ app.put('/Razas/Actualizar/:id', uploadRazas.single('imagen'), async (req, res) 
   try {
     if (imagen) {
       // Actualiza todos los campos incluyendo imagen
-      const sql = "UPDATE raza SET raza = ?, descripcion = ?, imagen = ? WHERE id = ?";
+      const sql = "UPDATE Raza SET raza = ?, descripcion = ?, imagen = ? WHERE id = ?";
       const [resultado] = await conexion.execute(sql, [raza, descripcion, imagen, id]);
       if (resultado.affectedRows > 0) {
         res.json({ mensaje: "Raza actualizada correctamente", resultado });
@@ -870,7 +870,7 @@ app.delete('/Razas/Eliminar/:id', async (req, res) => {
   const id = req.params.id;
   try {
     const [resultado] = await connection.execute(
-      "DELETE FROM raza WHERE id = ?", [id]
+      "DELETE FROM Raza WHERE id = ?", [id]
     );
     if (resultado.affectedRows > 0) {
       res.json({ mensaje: 'Raza eliminada correctamente', resultado });
