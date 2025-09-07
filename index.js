@@ -354,6 +354,26 @@ app.post('/roles/Crear', async (req, res) => {
   }
 });
 
+//Ruta Eliminar Roles
+
+app.delete('/roles/Eliminar/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const sqlDelete = 'DELETE FROM Rol WHERE id = ?';
+    const [resultado] = await conexion.query(sqlDelete, [id]);
+
+    if (resultado.affectedRows > 0) {
+      res.json({ message: 'Rol eliminado correctamente' });
+    } else {
+      res.status(404).json({ error: 'Rol no encontrado' });
+    }
+  } catch (err) {
+    console.error('Error al eliminar rol:', err);
+    res.status(500).json({ error: 'Error al eliminar rol' });
+  }
+});
+
 // Dashboard de admin
 app.get('/admin/dashboard', async (req, res) => {
   try {
