@@ -747,17 +747,6 @@ app.get('/Especies/Listado', async (req, res) => {
   }
 });
 
-/* Guardar imagenes para las especies */
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'public/imagenes_especies'); // crea esta carpeta si no existe
-  },
-  filename: function (req, file, cb) {
-    // nombre único para el archivo
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-
 
 app.use('/imagenes_especies', express.static('public/imagenes_especies'));
 
@@ -799,8 +788,9 @@ app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) =>
   let imagen = null;
 
   if (req.file) {
-    imagen = req.file.filename;
+  imagen = req.file.path; // URL pública de Cloudinary
   }
+
 
   try {
     if (imagen) {
@@ -844,17 +834,8 @@ app.delete('/Especies/Eliminar/:id', async (req, res) => {
   }
 });
 
-// Guardar imagenes de las razas
-const storageRazas = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'public/imagenes_razas'); // carpeta para imágenes de razas
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname)); // nombre único
-  }
-});
 
-const uploadRazas = multer({ storage: storageRazas });
+const uploadRazas = multer({ storage });
 
 // Servir imágenes estáticas de razas
 app.use('/imagenes_razas', express.static('public/imagenes_razas'));
