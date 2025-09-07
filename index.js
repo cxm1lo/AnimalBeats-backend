@@ -374,6 +374,87 @@ app.delete('/roles/Eliminar/:id', async (req, res) => {
   }
 });
 
+// ==========================
+// Perfil Veterinario
+// ==========================
+
+// Crear veterinario
+app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
+  try {
+    const { nombre_completo, estudios_especialidad, edad, altura, anios_experiencia } = req.body;
+    if (!nombre_completo || !estudios_especialidad || !edad || !altura || !anios_experiencia) {
+      return res.status(400).json({ mensaje: 'Faltan campos obligatorios' });
+    }
+
+    const imagen_url = req.file ? `/uploads/veterinarios/${req.file.filename}` : null;
+
+    const sql = `INSERT INTO Veterinarios 
+      (nombre_completo, estudios_especialidad, edad, altura, anios_experiencia, imagen_url)
+      VALUES (?, ?, ?, ?, ?, ?)`;
+
+    const [resultado] = await conexion.execute(sql, [
+      nombre_completo,
+      estudios_especialidad,
+      edad,
+      altura,
+      anios_experiencia,
+      imagen_url,
+    ]);
+
+    res.status(201).json({ mensaje: 'Veterinario creado exitosamente', id: resultado.insertId });
+  } catch (error) {
+    console.error('Error al crear veterinario:', error);
+    res.status(500).json({ mensaje: 'Error al crear veterinario' });
+  }
+});
+
+// Listar
+app.get('/veterinarios', async (req, res) => {
+  try {
+    const [rows] = await conexion.execute('SELECT * FROM Veterinarios ORDER BY creado_en DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al consultar veterinarios:', error);
+    res.status(500).json({ mensaje: 'Error al consultar veterinarios' });
+  }
+});
+
+// Consultar 
+app.get('/veterinarios/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await conexion.execute('SELECT * FROM Veterinarios WHERE id_veterinario = ?', [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ mensaje: 'Veterinario no encontrado' });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error al consultar veterinario:', error);
+    res.status(500).json({ mensaje: 'Error al consultar veterinario' });
+  }
+});
+
+// Eliminar
+app.delete('/veterinarios/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [resultado] = await conexion.execute('DELETE FROM Veterinarios WHERE id_veterinario = ?', [id]);
+
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Veterinario no encontrado' });
+    }
+
+    res.json({ mensaje: 'Veterinario eliminado exitosamente' });
+  } catch (error) {
+    console.error('Error al eliminar veterinario:', error);
+    res.status(500).json({ mensaje: 'Error al eliminar veterinario' });
+  }
+});
+
+
+
 // Dashboard de admin
 app.get('/admin/dashboard', async (req, res) => {
   try {
