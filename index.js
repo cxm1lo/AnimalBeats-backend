@@ -21,6 +21,7 @@ const multer = require('multer');
 const { storage } = require('./config/cloudinary');
 const upload = multer({ storage });
 const uploadRazas = multer({ storage });
+const fs = require('fs');
 
 
 
@@ -381,7 +382,7 @@ app.delete('/roles/Eliminar/:id', async (req, res) => {
 // ==========================
 // Perfil Veterinario
 // ==========================
-app.use('/uploads/veterinarios', express.static('uploads/veterinarios'));
+app.use('/uploads/veterinarios', express.static(path.join(__dirname, 'uploads/veterinarios')));
 
 // Crear veterinario
 app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
@@ -391,8 +392,9 @@ app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
       return res.status(400).json({ mensaje: 'Faltan campos obligatorios' });
     }
 
-    // Guardar la ruta
-    const imagen_url = req.file ? req.file.path : null;
+    // Guardar la URL pública
+    const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
+    const imagen_url = req.file ? `${serverUrl}/uploads/veterinarios/${req.file.filename}` : null;
 
     const sql = `INSERT INTO Veterinarios 
       (nombre_completo, estudios_especialidad, edad, altura, anios_experiencia, imagen_url)
@@ -407,7 +409,7 @@ app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
       imagen_url,
     ]);
 
-    res.status(201).json({ mensaje: 'Veterinario creado correctamente', id: resultado.insertId });
+    res.status(201).json({ mensaje: 'Veterinario creado correctamente', id: resultado.insertId, imagen_url });
   } catch (err) {
     console.error('Error al crear veterinario:', err);
     res.status(500).json({ error: 'Error al crear veterinario' });
@@ -447,16 +449,16 @@ app.delete('/veterinarios/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    //Obtiene la imagen para borrarla del servidor
+    // Buscar imagen para borrarla del servidor
     const [rows] = await conexion.execute('SELECT imagen_url FROM Veterinarios WHERE id_veterinario = ?', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ mensaje: 'Veterinario no encontrado' });
     }
 
-    const imagenPath = rows[0].imagen_url?.replace(`${process.env.SERVER_URL || 'http://localhost:3000'}/`, '');
-    if (imagenPath) {
-      const fs = require('fs');
-      fs.unlink(imagenPath, (err) => {
+    const imagenUrl = rows[0].imagen_url;
+    if (imagenUrl) {
+      const filePath = path.join(__dirname, imagenUrl.replace(`${process.env.SERVER_URL || 'http://localhost:3000'}`, ''));
+      fs.unlink(filePath, (err) => {
         if (err) console.warn('No se pudo eliminar la imagen:', err.message);
       });
     }
