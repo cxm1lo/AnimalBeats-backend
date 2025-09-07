@@ -14,9 +14,11 @@ const mysql = require('mysql2/promise');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
-const multer = require('multer');
 const path = require('path');
 const JWT_SECRET = process.env.JWT_SECRET;
+const multer = require('multer');
+const { storage } = require('./config/cloudinary');
+const upload = multer({ storage });
 
 
 
@@ -756,14 +758,13 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage: storage });
 
 app.use('/imagenes_especies', express.static('public/imagenes_especies'));
 
 // Registrar especie
 app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
   const { Especie } = req.body;
-  const imagen = req.file ? req.file.filename : null; // nombre del archivo guardado
+  const imagen = req.file ? req.file.path : null; // URL pública de Cloudinary
 
   try {
     const sql = "INSERT INTO Especie (especie, imagen) VALUES (?, ?)";
@@ -774,6 +775,7 @@ app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
     res.status(500).json({ error: 'Error al registrar especie' });
   }
 });
+
 
 app.get('/Especies/:id', async (req, res) => {
   const { id } = req.params;
@@ -893,10 +895,10 @@ app.get('/Razas/:id', async (req, res) => {
 });
 
 // Agregar raza
-app.post('/Razas/Crear/:id', uploadRazas.single('imagen'), async (req, res) => {
+app.post('/Razas/Crear/:id', upload.single('imagen'), async (req, res) => {
   const { id } = req.params;
   const { raza, descripcion } = req.body;
-  const imagen = req.file ? req.file.filename : null;
+  const imagen = req.file ? req.file.path : null; // URL pública de Cloudinary
 
   try {
     const sql = "INSERT INTO Raza (raza, descripcion, imagen, id_especie) VALUES (?, ?, ?, ?)";
