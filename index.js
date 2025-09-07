@@ -822,7 +822,6 @@ app.delete('/Especies/Eliminar/:id', async (req, res) => {
 
 // ----------------- RAZAS -----------------
 
-const uploadRazas = multer({ storage });
 
 // Listar razas de una especie
 app.get('/Razas/Listado/:id', async (req, res) => {
