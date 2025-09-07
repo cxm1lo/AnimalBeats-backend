@@ -636,7 +636,7 @@ app.get('/Citas/mascota/:id', async (req, res) => {
 app.get('/recordatorio/mascota/:id', async (req, res) => {
   const id = req.params.id;
   try {
-    const [resultado] = await conexion.execute('select fecha, descripcion from recordatorios where id_mascota = ?', [id]);
+    const [resultado] = await conexion.execute('select fecha, descripcion from Recordatorios where id_mascota = ?', [id]);
     if (resultado.length > 0) {
       res.json(resultado);
     } else {
