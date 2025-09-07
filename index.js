@@ -1115,40 +1115,13 @@ app.get('/Mascota/recordatorio/:id', async (req, res) => {
   try {
     const [resultado] = await conexion.execute("SELECT M.id, M.nombre FROM Mascota M WHERE M.id_cliente = ?", [id]);
     if (resultado.length > 0) {
-      res.json(resultado[0]);
+      res.json(resultado); 
     } else {
-      res.status(404).json('No hay mascota registrada para ese ID');
+      es.status(404).json([]);
     }
   } catch (err) {
     console.error('Error al obtener mascota:', err);
     res.status(500).json({ error: 'Error al obtener mascota' });
-  }
-});
-
-// Guardar nuevo recordatorio
-app.post('/recordatorios/guardar', async (req, res) => {
-  const connection = req.app.locals.connection;
-  const { cliente, mascota, fecha, descripcion } = req.body;
-
-  try {
-    if (!fecha || typeof fecha !== 'string') {
-      throw new Error('Fecha inválida');
-    }
-
-    const fechaParseada = fecha.replace('T', ' ') + ':00';
-
-    await connection.execute(
-      `
-      INSERT INTO Recordatorios (id_cliente, id_Mascota, Fecha, descripcion)
-      VALUES (?, ?, ?, ?)
-      `,
-      [cliente, mascota, fechaParseada, descripcion]
-    );
-
-    res.status(201).json({ message: 'Recordatorio guardado correctamente' });
-  } catch (error) {
-    console.error('Error al guardar recordatorio:', error);
-    res.status(500).json({ error: 'Error al guardar el recordatorio' });
   }
 });
 
@@ -1171,8 +1144,7 @@ app.put('/recordatorios/modificar/:id', async (req, res) => {
   }
 });
 
-// Obtener datos de un recordatorio para edición
-// Ejemplo en Node.js para guardar recordatorio
+// Guardar un nuevo recordatorio
 app.post('/recordatorios/guardar', async (req, res) => {
   const connection = req.app.locals.connection;
   const { cliente, mascota, fecha, descripcion } = req.body;
@@ -1181,10 +1153,8 @@ app.post('/recordatorios/guardar', async (req, res) => {
     if (!fecha || typeof fecha !== 'string') {
       throw new Error('Fecha inválida');
     }
-    // Convertir 'YYYY-MM-DDTHH:mm' a 'YYYY-MM-DD HH:mm:ss'
-    const fechaParseada = fecha.replace('T', ' ') + ':00';
+    const fechaParseada = fecha;
 
-    // (Opcional) Validar que cliente exista en Usuarios
     const [usuario] = await connection.execute(
       'SELECT n_documento FROM Usuarios WHERE n_documento = ?',
       [cliente]
@@ -1193,7 +1163,6 @@ app.post('/recordatorios/guardar', async (req, res) => {
       return res.status(400).json({ error: 'Cliente no existe' });
     }
 
-    // (Opcional) Validar que mascota existe y pertenece a ese cliente
     const [mascotaBD] = await connection.execute(
       'SELECT id FROM Mascota WHERE id = ? AND id_cliente = ?',
       [mascota, cliente]
@@ -1216,7 +1185,6 @@ app.post('/recordatorios/guardar', async (req, res) => {
     res.status(500).json({ error: 'Error al guardar el recordatorio' });
   }
 });
-
 
 // Eliminar recordatorio
 app.delete('/recordatorios/eliminar/:id', async (req, res) => {
