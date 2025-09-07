@@ -9,6 +9,7 @@ console.log("DB_PORT:", process.env.DB_PORT);
 console.log("JWT_SECRET:", process.env.JWT_SECRET ? "****" : null);
 
 const express = require('express');
+const router = express.Router();
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql2/promise');
 const bodyParser = require('body-parser');
@@ -19,6 +20,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const multer = require('multer');
 const { storage } = require('./config/cloudinary');
 const upload = multer({ storage });
+const uploadRazas = multer({ storage });
 
 
 
@@ -757,10 +759,10 @@ app.get('/Especies/:id', async (req, res) => {
   }
 });
 
-// Crear especie con imagen en Cloudinary
+// Crear epescie con imagen
 app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
   const { Especie } = req.body;
-  const imagen = req.file ? req.file.path : null; // URL de Cloudinary
+  const imagen = req.file ? req.file.path : null; // URL Cloudinary
 
   try {
     const sql = "INSERT INTO Especie (especie, imagen) VALUES (?, ?)";
@@ -771,6 +773,7 @@ app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
     res.status(500).json({ error: 'Error al registrar especie' });
   }
 });
+
 
 // Actualizar especie (nombre y opcional imagen)
 app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) => {
@@ -799,6 +802,7 @@ app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) =>
     res.status(500).json({ error: 'Error al actualizar especie' });
   }
 });
+
 
 // Eliminar especie
 app.delete('/Especies/Eliminar/:id', async (req, res) => {
@@ -850,7 +854,7 @@ app.get('/Razas/:id', async (req, res) => {
 
 // Crear raza con imagen en Cloudinary
 app.post('/Razas/Crear/:id', uploadRazas.single('imagen'), async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; // id de la especie
   const { raza, descripcion } = req.body;
   const imagen = req.file ? req.file.path : null;
 
@@ -891,6 +895,7 @@ app.put('/Razas/Actualizar/:id', uploadRazas.single('imagen'), async (req, res) 
     res.status(500).json({ error: 'Error al actualizar raza' });
   }
 });
+
 
 // Eliminar raza
 app.delete('/Razas/Eliminar/:id', async (req, res) => {
