@@ -797,16 +797,7 @@ app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) =>
   const { id } = req.params;
 
   const especie = req.body.Especie || req.body.especie; // según cómo envíes el campo
-  let imagen = null;
-
-  if (req.file) {
-    imagen = req.file.path; // URL pública de Cloudinary
-  }
-
-
-  const especie = req.body.Especie || req.body.especie;
-  const imagen = req.file ? req.file.path : null;
-
+  const imagen = req.file ? req.file.path : null; // si hay imagen nueva en Cloudinary
 
   try {
     let sql, params;
