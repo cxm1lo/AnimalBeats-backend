@@ -1135,9 +1135,9 @@ app.get('/Mascota/recordatorio/:id', async (req, res) => {
   try {
     const [resultado] = await conexion.execute("SELECT M.id, M.nombre FROM Mascota M WHERE M.id_cliente = ?", [id]);
     if (resultado.length > 0) {
-      res.json(resultado); 
+      res.json(resultado[0]);
     } else {
-      es.status(404).json([]);
+      res.status(404).json('No hay mascota registrada para ese ID');
     }
   } catch (err) {
     console.error('Error al obtener mascota:', err);
