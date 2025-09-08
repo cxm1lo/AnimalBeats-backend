@@ -781,11 +781,19 @@ app.get('/Especies/:id', async (req, res) => {
 // Crear especie
 app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
   const { Especie } = req.body;
+
   try {
     let imagenUrl = null;
+
+    // Verificamos si hay archivo
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path);
-      imagenUrl = result.secure_url; // SOLO la URL
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path);
+        imagenUrl = result.secure_url; // SOLO la URL
+      } catch (err) {
+        console.error('Error subiendo imagen a Cloudinary:', err.message);
+        return res.status(500).json({ error: 'Error al subir la imagen' });
+      }
     }
 
     const sql = "INSERT INTO Especie (especie, imagen) VALUES (?, ?)";
@@ -797,11 +805,13 @@ app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
       especie: Especie,
       imagen: imagenUrl
     });
+
   } catch (err) {
-    console.error('Error al registrar especie:', err);
+    console.error('Error registrando especie:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Actualizar especie
 app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) => {
@@ -891,15 +901,21 @@ app.get('/Razas/:id', async (req, res) => {
 });
 
 // Crear raza
-app.post('/Razas/Crear/:id_especie', uploadRazas.single('imagen'), async (req, res) => {
+app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) => {
   const { id_especie } = req.params;
   const { raza, descripcion } = req.body;
 
   try {
     let imagenUrl = null;
+
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path);
-      imagenUrl = result.secure_url;
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path);
+        imagenUrl = result.secure_url;
+      } catch (err) {
+        console.error('Error subiendo imagen a Cloudinary:', err.message);
+        return res.status(500).json({ error: 'Error al subir la imagen' });
+      }
     }
 
     const sql = "INSERT INTO Raza (raza, descripcion, imagen, id_especie) VALUES (?, ?, ?, ?)";
@@ -913,11 +929,13 @@ app.post('/Razas/Crear/:id_especie', uploadRazas.single('imagen'), async (req, r
       imagen: imagenUrl,
       id_especie
     });
+
   } catch (err) {
-    console.error('Error al registrar raza:', err);
+    console.error('Error registrando raza:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Actualizar raza
 app.put('/Razas/Actualizar/:id', uploadRazas.single('imagen'), async (req, res) => {
