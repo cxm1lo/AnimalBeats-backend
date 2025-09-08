@@ -778,7 +778,7 @@ app.get('/Especies/:id', async (req, res) => {
   }
 });
 
-// Crear especie con imagen
+// Crear especie
 app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
   const { Especie } = req.body;
   try {
@@ -791,14 +791,20 @@ app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
     const sql = "INSERT INTO Especie (especie, imagen) VALUES (?, ?)";
     const [resultado] = await conexion.execute(sql, [Especie, imagenUrl]);
 
-    res.status(201).json({ mensaje: "Especie ingresada correctamente", resultado, imagenUrl });
+    // Envía solo los campos útiles
+    res.status(201).json({
+      mensaje: "Especie ingresada correctamente",
+      id: resultado.insertId,
+      especie: Especie,
+      imagen: imagenUrl
+    });
   } catch (err) {
     console.error('Error al registrar especie:', err);
     res.status(500).json({ error: 'Error al registrar especie' });
   }
 });
 
-// Actualizar especie (nombre y opcional imagen)
+// Actualizar especie
 app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) => {
   const { id } = req.params;
   const especie = req.body.Especie || req.body.especie;
@@ -822,7 +828,12 @@ app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) =>
     const [resultado] = await conexion.execute(sql, params);
 
     if (resultado.affectedRows > 0) {
-      res.json({ mensaje: "Especie actualizada correctamente", resultado, imagenUrl });
+      res.json({
+        mensaje: "Especie actualizada correctamente",
+        id,
+        especie,
+        imagen: imagenUrl
+      });
     } else {
       res.status(404).json({ mensaje: "No hay especie registrada con ese ID" });
     }
@@ -831,6 +842,7 @@ app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) =>
     res.status(500).json({ error: 'Error al actualizar especie' });
   }
 });
+
 
 
 // Eliminar especie
@@ -895,7 +907,14 @@ app.post('/Razas/Crear/:id', uploadRazas.single('imagen'), async (req, res) => {
     const sql = "INSERT INTO Raza (raza, descripcion, imagen, id_especie) VALUES (?, ?, ?, ?)";
     const [resultado] = await conexion.execute(sql, [raza, descripcion, imagenUrl, id]);
 
-    res.status(201).json({ mensaje: "Raza ingresada correctamente", resultado, imagenUrl });
+    res.status(201).json({
+  mensaje: "Raza ingresada correctamente",
+  id: resultado.insertId,
+  raza,
+  descripcion,
+  imagen: imagenUrl,
+  id_especie: id
+});
   } catch (err) {
     console.error('Error al registrar raza:', err);
     res.status(500).json({ error: 'Error al registrar raza' });
@@ -926,7 +945,13 @@ app.put('/Razas/Actualizar/:id', uploadRazas.single('imagen'), async (req, res) 
     const [resultado] = await conexion.execute(sql, params);
 
     if (resultado.affectedRows > 0) {
-      res.json({ mensaje: "Raza actualizada correctamente", resultado, imagenUrl });
+      res.json({
+  mensaje: "Raza actualizada correctamente",
+  id,
+  raza,
+  descripcion,
+  imagen: imagenUrl
+});
     } else {
       res.status(404).json({ mensaje: "No hay raza registrada con ese ID" });
     }
