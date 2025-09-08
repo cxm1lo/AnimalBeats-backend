@@ -382,8 +382,7 @@ app.delete('/roles/Eliminar/:id', async (req, res) => {
 // ==========================
 // Perfil Veterinario (Rutas corregidas y robustas)
 // ==========================
-const fs = require('fs');
-const path = require('path');
+
 
 // Sirve carpeta local (si usas almacenamiento local con multer.diskStorage)
 app.use('/uploads/veterinarios', express.static(path.join(__dirname, 'uploads/veterinarios')));
