@@ -935,7 +935,6 @@ app.put('/Razas/Actualizar/:id', uploadRazas.single('imagen'), async (req, res) 
     res.status(500).json({ error: 'Error al actualizar raza' });
   }
 });
-});
 
 
 // Eliminar raza
