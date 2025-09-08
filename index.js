@@ -380,21 +380,61 @@ app.delete('/roles/Eliminar/:id', async (req, res) => {
 });
 
 // ==========================
-// Perfil Veterinario
+// Perfil Veterinario (Rutas corregidas y robustas)
 // ==========================
+const fs = require('fs');
+const path = require('path');
+
+// Sirve carpeta local (si usas almacenamiento local con multer.diskStorage)
 app.use('/uploads/veterinarios', express.static(path.join(__dirname, 'uploads/veterinarios')));
 
-// Crear veterinario
+/**
+ * Crear /veterinarios
+ * - Acepta multipart/form-data con campo 'imagen' y campos textuales.
+ * - Maneja tanto storage local (req.file.filename) como cloud (req.file.path con URL).
+ */
 app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
   try {
-    const { nombre_completo, estudios_especialidad, edad, altura, anios_experiencia } = req.body;
-    if (!nombre_completo || !estudios_especialidad || !edad || !altura || !anios_experiencia) {
+    const {
+      nombre_completo,
+      estudios_especialidad,
+      edad: edadRaw,
+      altura: alturaRaw,
+      anios_experiencia: aniosRaw
+    } = req.body;
+
+    // Validación básica
+    if (!nombre_completo || !estudios_especialidad || !edadRaw || !alturaRaw || !aniosRaw) {
       return res.status(400).json({ mensaje: 'Faltan campos obligatorios' });
     }
 
-    // Guardar la URL pública
-    const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
-    const imagen_url = req.file ? `${serverUrl}/uploads/veterinarios/${req.file.filename}` : null;
+    // Convertir tipos
+    const edad = parseInt(edadRaw, 10);
+    const altura = parseFloat(alturaRaw);
+    const anios_experiencia = parseInt(aniosRaw, 10);
+
+    if (Number.isNaN(edad) || Number.isNaN(altura) || Number.isNaN(anios_experiencia)) {
+      return res.status(400).json({ mensaje: 'Edad, altura o años de experiencia tienen formato inválido' });
+    }
+
+    // Determinar imagen_url según storage
+    // Si req.file.path existe y parece una URL (cloudinary u otro), la usamos.
+    // Sino, si se usó storage local y existe filename, construimos URL con SERVER_URL.
+    let imagen_url = null;
+    if (req.file) {
+      if (req.file.path && String(req.file.path).startsWith('http')) {
+        // Ej: Cloudinary u otro storage remoto devuelve URL en req.file.path
+        imagen_url = req.file.path;
+      } else if (req.file.filename) {
+        // Ej: almacenamiento en disco local: construimos URL pública
+        const serverUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
+        imagen_url = `${serverUrl}/uploads/veterinarios/${req.file.filename}`;
+      } else if (req.file.path) {
+        // Fallback: si multer devuelve path relativo (uploads/...)
+        const serverUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
+        imagen_url = `${serverUrl}/${req.file.path.replace(/^\/+/, '')}`;
+      }
+    }
 
     const sql = `INSERT INTO Veterinarios 
       (nombre_completo, estudios_especialidad, edad, altura, anios_experiencia, imagen_url)
@@ -409,25 +449,34 @@ app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
       imagen_url,
     ]);
 
-    res.status(201).json({ mensaje: 'Veterinario creado correctamente', id: resultado.insertId, imagen_url });
+    return res.status(201).json({
+      mensaje: 'Veterinario creado correctamente',
+      id: resultado.insertId,
+      imagen_url
+    });
   } catch (err) {
-    console.error('Error al crear veterinario:', err);
-    res.status(500).json({ error: 'Error al crear veterinario' });
+    console.error('Error al crear veterinario:', err?.message ?? err, err);
+    // En producción quizá quieras esconder stack; aquí devolvemos info útil para depuración
+    return res.status(500).json({ error: 'Error al crear veterinario', details: err?.message || String(err) });
   }
 });
 
-// Listar veterinarios
+/**
+ * Listar /veterinarios
+ */
 app.get('/veterinarios', async (req, res) => {
   try {
     const [rows] = await conexion.execute('SELECT * FROM Veterinarios ORDER BY creado_en DESC');
     res.json(rows);
   } catch (error) {
-    console.error('Error al consultar veterinarios:', error);
-    res.status(500).json({ mensaje: 'Error al consultar veterinarios' });
+    console.error('Error al consultar veterinarios:', error?.message ?? error, error);
+    res.status(500).json({ mensaje: 'Error al consultar veterinarios', details: error?.message || String(error) });
   }
 });
 
-// Consultar veterinario por id
+/**
+ * Consultar /veterinarios/:id
+ */
 app.get('/veterinarios/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -439,28 +488,50 @@ app.get('/veterinarios/:id', async (req, res) => {
 
     res.json(rows[0]);
   } catch (error) {
-    console.error('Error al consultar veterinario:', error);
-    res.status(500).json({ mensaje: 'Error al consultar veterinario' });
+    console.error('Error al consultar veterinario:', error?.message ?? error, error);
+    res.status(500).json({ mensaje: 'Error al consultar veterinario', details: error?.message || String(error) });
   }
 });
 
-// Eliminar veterinario
+/**
+ * Eliminar /veterinarios/:id
+ * - Si la imagen está almacenada localmente en /uploads/veterinarios, la elimina del disco.
+ * - Si la imagen es una URL externa (Cloudinary), no intenta borrarla (si quieres borrar en Cloudinary, debes usar su API).
+ */
 app.delete('/veterinarios/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Buscar imagen para borrarla del servidor
     const [rows] = await conexion.execute('SELECT imagen_url FROM Veterinarios WHERE id_veterinario = ?', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ mensaje: 'Veterinario no encontrado' });
     }
 
     const imagenUrl = rows[0].imagen_url;
-    if (imagenUrl) {
-      const filePath = path.join(__dirname, imagenUrl.replace(`${process.env.SERVER_URL || 'http://localhost:3000'}`, ''));
-      fs.unlink(filePath, (err) => {
-        if (err) console.warn('No se pudo eliminar la imagen:', err.message);
-      });
+
+    // Solo intentamos borrar archivo local si la URL apunta a /uploads/veterinarios/
+    if (imagenUrl && imagenUrl.includes('/uploads/veterinarios/')) {
+      // Extraer ruta relativa después del dominio (o si imagenUrl es relativo)
+      let relativePath = imagenUrl;
+      // Si la URL contiene SERVER_URL, quitamos esa parte
+      const serverUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
+      if (relativePath.startsWith(serverUrl)) {
+        relativePath = relativePath.replace(serverUrl, '');
+      }
+      // asegurar que no tenga slash inicial
+      relativePath = relativePath.replace(/^\/+/, '');
+      const filePath = path.join(__dirname, relativePath);
+
+      // Comprueba existencia y borra
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        } else {
+          console.warn('Archivo de imagen no existe en disco:', filePath);
+        }
+      } catch (unlinkErr) {
+        console.warn('No se pudo eliminar la imagen local:', unlinkErr?.message ?? unlinkErr);
+      }
     }
 
     const [resultado] = await conexion.execute('DELETE FROM Veterinarios WHERE id_veterinario = ?', [id]);
@@ -471,8 +542,8 @@ app.delete('/veterinarios/:id', async (req, res) => {
 
     res.json({ mensaje: 'Veterinario eliminado exitosamente' });
   } catch (error) {
-    console.error('Error al eliminar veterinario:', error);
-    res.status(500).json({ mensaje: 'Error al eliminar veterinario' });
+    console.error('Error al eliminar veterinario:', error?.message ?? error, error);
+    res.status(500).json({ mensaje: 'Error al eliminar veterinario', details: error?.message || String(error) });
   }
 });
 
