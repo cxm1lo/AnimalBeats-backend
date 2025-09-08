@@ -458,17 +458,20 @@ app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
 });
 
 /**
- * Listar /veterinarios
+ * Listar veterinarios activos
  */
 app.get('/veterinarios', async (req, res) => {
   try {
-    const [rows] = await conexion.execute('SELECT * FROM Veterinarios ORDER BY creado_en DESC');
+    const [rows] = await conexion.execute(
+      'SELECT * FROM Veterinarios WHERE activo = 1 ORDER BY creado_en DESC'
+    );
     res.json(rows);
   } catch (error) {
     console.error('Error al consultar veterinarios:', error?.message ?? error, error);
     res.status(500).json({ mensaje: 'Error al consultar veterinarios', details: error?.message || String(error) });
   }
 });
+
 
 /**
  * Consultar /veterinarios/:id
@@ -490,53 +493,22 @@ app.get('/veterinarios/:id', async (req, res) => {
 });
 
 /**
- * Eliminar /veterinarios/:id
- * - Si la imagen está almacenada localmente en /uploads/veterinarios, la elimina del disco.
- * - Si la imagen es una URL externa (Cloudinary), no intenta borrarla (si quieres borrar en Cloudinary, debes usar su API).
+ * Eliminar
  */
 app.delete('/veterinarios/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [rows] = await conexion.execute('SELECT imagen_url FROM Veterinarios WHERE id_veterinario = ?', [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ mensaje: 'Veterinario no encontrado' });
-    }
-
-    const imagenUrl = rows[0].imagen_url;
-
-    // Solo intentamos borrar archivo local si la URL apunta a /uploads/veterinarios/
-    if (imagenUrl && imagenUrl.includes('/uploads/veterinarios/')) {
-      // Extraer ruta relativa después del dominio (o si imagenUrl es relativo)
-      let relativePath = imagenUrl;
-      // Si la URL contiene SERVER_URL, quitamos esa parte
-      const serverUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
-      if (relativePath.startsWith(serverUrl)) {
-        relativePath = relativePath.replace(serverUrl, '');
-      }
-      // asegurar que no tenga slash inicial
-      relativePath = relativePath.replace(/^\/+/, '');
-      const filePath = path.join(__dirname, relativePath);
-
-      // Comprueba existencia y borra
-      try {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        } else {
-          console.warn('Archivo de imagen no existe en disco:', filePath);
-        }
-      } catch (unlinkErr) {
-        console.warn('No se pudo eliminar la imagen local:', unlinkErr?.message ?? unlinkErr);
-      }
-    }
-
-    const [resultado] = await conexion.execute('DELETE FROM Veterinarios WHERE id_veterinario = ?', [id]);
+    const [resultado] = await conexion.execute(
+      'UPDATE Veterinarios SET activo = 0 WHERE id_veterinario = ?',
+      [id]
+    );
 
     if (resultado.affectedRows === 0) {
       return res.status(404).json({ mensaje: 'Veterinario no encontrado' });
     }
 
-    res.json({ mensaje: 'Veterinario eliminado exitosamente' });
+    res.json({ mensaje: 'Veterinario marcado como eliminado' });
   } catch (error) {
     console.error('Error al eliminar veterinario:', error?.message ?? error, error);
     res.status(500).json({ mensaje: 'Error al eliminar veterinario', details: error?.message || String(error) });
