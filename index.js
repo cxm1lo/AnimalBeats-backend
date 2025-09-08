@@ -422,14 +422,11 @@ app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
     let imagen_url = null;
     if (req.file) {
       if (req.file.path && String(req.file.path).startsWith('http')) {
-        // Ej: Cloudinary u otro storage remoto devuelve URL en req.file.path
         imagen_url = req.file.path;
       } else if (req.file.filename) {
-        // Ej: almacenamiento en disco local: construimos URL pública
         const serverUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
         imagen_url = `${serverUrl}/uploads/veterinarios/${req.file.filename}`;
       } else if (req.file.path) {
-        // Fallback: si multer devuelve path relativo (uploads/...)
         const serverUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
         imagen_url = `${serverUrl}/${req.file.path.replace(/^\/+/, '')}`;
       }
