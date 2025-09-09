@@ -5,10 +5,10 @@
     "description": "Esta API permite llevar el control completo del proyecto AnimalBeats",
     "version": "1.0.0"
   },
-  "host": "localhost:3000",
+  "host": "animalbeats-backend-production.up.railway.app",
   "basePath": "/",
   "schemes": [
-    "http"
+    "https"
   ],
   "paths": {}
 }
