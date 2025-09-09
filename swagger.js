@@ -8,8 +8,8 @@ const doc={
         title:'API del proyecto ANIMALBEATS',
         description: 'Esta API permite llevar el control completo del proyecto AnimalBeats'
     },
-    host: 'localhost:3000',
-    schemes: ['http']
+    "host": "animalbeats-backend-production.up.railway.app",
+    "schemes": ["https"]
 }
 
 swaggerAutogen()(outputFile, endPointsFiles,doc);
