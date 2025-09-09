@@ -1,4 +1,10 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
+import express from 'express';
+import cors from 'cors';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 console.log("Variables de entorno:");
 console.log("DB_HOST:", process.env.DB_HOST);
@@ -8,26 +14,32 @@ console.log("DB_NAME:", process.env.DB_NAME);
 console.log("DB_PORT:", process.env.DB_PORT);
 console.log("JWT_SECRET:", process.env.JWT_SECRET ? "****" : null);
 
-const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const mysql = require('mysql2/promise');
-const bodyParser = require('body-parser');
-const bcrypt = require('bcrypt');
-const cors = require('cors');
-const path = require('path');
-const JWT_SECRET = process.env.JWT_SECRET;
-const multer = require('multer');
-const { storage } = require('./config/cloudinary');
+import jwt from 'jsonwebtoken';
+import mysql from 'mysql2/promise';
+import bodyParser from 'body-parser';
+import bcrypt from 'bcrypt';
+import path from 'path';
+import fs from 'fs';
+import { storage } from './config/cloudinary.js';
+import multer from 'multer';
+
 const upload = multer({ storage });
 const uploadRazas = multer({ storage });
-const fs = require('fs');
-
-
-
 const app = express();
+const JWT_SECRET = process.env.JWT_SECRET;
+
 app.use(cors());
 app.use(bodyParser.json());
+
+
+// Creacion de doc swagger
+import swaggerUI from 'swagger-ui-express';
+import swaggerDocumentation from './swagger.json' with {type:'json'};
+
+app.use(express.json());
+app.use('/documentacion-api-animalbeats', swaggerUI.serve, swaggerUI.setup(swaggerDocumentation));
+
 
 // Conexión asincrónica a la base de datos AnimalBeats
 let conexion;
