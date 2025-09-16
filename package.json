@@ -4,14 +4,15 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-  "swagger-autogen": "node swagger.js",
-  "start": "node index.js",
-  "dev": "npm run swagger-autogen && node index.js"
-},
+    "swagger-autogen": "node swagger.js",
+    "start": "node index.js",
+    "dev": "npm run swagger-autogen && node index.js"
+  },
   "engines": {
     "node": "18.x"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.0",
     "cloudinary": "^1.41.3",

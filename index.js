@@ -2,9 +2,11 @@ import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
 import cors from 'cors';
-import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import upload from './config/multer.js';
+import { createClient } from "@supabase/supabase-js";
+
+
+
 
 console.log("Variables de entorno:");
 console.log("DB_HOST:", process.env.DB_HOST);
@@ -19,18 +21,16 @@ import jwt from 'jsonwebtoken';
 import mysql from 'mysql2/promise';
 import bodyParser from 'body-parser';
 import bcrypt from 'bcrypt';
-import path from 'path';
 import fs from 'fs';
-import { storage } from './config/cloudinary.js';
 import multer from 'multer';
+import path from 'path';
 
-const upload = multer({ storage });
-const uploadRazas = multer({ storage });
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET;
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use('/uploads', express.static('uploads'));
 
 
 // Creacion de doc swagger
@@ -40,6 +40,11 @@ import swaggerDocumentation from './swagger.json' with {type: 'json'};
 app.use(express.json());
 app.use('/documentacion-api-animalbeats', swaggerUI.serve, swaggerUI.setup(swaggerDocumentation));
 
+// Conexion a storage de supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
 // Conexión asincrónica a la base de datos AnimalBeats
 let conexion;
@@ -796,7 +801,7 @@ app.get('/Citas/mascota/:id', async (req, res) => {
 app.get('/recordatorio/mascota/:id', async (req, res) => {
   const id = req.params.id;
   try {
-    const [resultado] = await conexion.execute('select fecha, descripcion from Recordatorios where id_mascota = ?', [id]);
+    const [resultado] = await conexion.execute('select fecha, descripcion, estado from Recordatorios where id_mascota = ?', [id]);
     if (resultado.length > 0) {
       res.json(resultado);
     } else {
@@ -841,29 +846,35 @@ app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
   try {
     let imagenUrl = null;
 
-    // Verificamos si hay archivo
     if (req.file) {
-      try {
-        const result = await cloudinary.uploader.upload(req.file.path);
-        imagenUrl = result.secure_url; // SOLO la URL
-      } catch (err) {
-        console.error('Error subiendo imagen a Cloudinary:', err.message);
-        return res.status(500).json({ error: 'Error al subir la imagen' });
-      }
+      const fileName = `especies/${Date.now()}_${req.file.originalname}`;
+      const { error } = await supabase.storage
+        .from("imagenes")
+        .upload(fileName, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      const { data: publicUrl } = supabase.storage
+        .from("imagenes")
+        .getPublicUrl(fileName);
+
+      imagenUrl = publicUrl.publicUrl;
     }
 
     const sql = "INSERT INTO Especie (especie, imagen) VALUES (?, ?)";
     const [resultado] = await conexion.execute(sql, [Especie, imagenUrl]);
 
     res.status(201).json({
-      mensaje: "Especie ingresada correctamente",
+      mensaje: "Especie creada correctamente",
       id: resultado.insertId,
       especie: Especie,
       imagen: imagenUrl
     });
-
   } catch (err) {
-    console.error('Error registrando especie:', err.message);
+    console.error("Error registrando especie:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -876,9 +887,23 @@ app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) =>
 
   try {
     let imagenUrl = null;
+
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path);
-      imagenUrl = result.secure_url;
+      const fileName = `especies/${Date.now()}_${req.file.originalname}`;
+      const { error } = await supabase.storage
+        .from("imagenes")
+        .upload(fileName, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      const { data: publicUrl } = supabase.storage
+        .from("imagenes")
+        .getPublicUrl(fileName);
+
+      imagenUrl = publicUrl.publicUrl;
     }
 
     let sql, params;
@@ -893,20 +918,16 @@ app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) =>
     const [resultado] = await conexion.execute(sql, params);
 
     if (resultado.affectedRows > 0) {
-      res.json({
-        mensaje: "Especie actualizada correctamente",
-        id,
-        especie: Especie,
-        imagen: imagenUrl
-      });
+      res.json({ mensaje: "Especie actualizada correctamente", imagen: imagenUrl });
     } else {
-      res.status(404).json({ mensaje: "No hay especie registrada con ese ID" });
+      res.status(404).json({ mensaje: "Especie no encontrada" });
     }
   } catch (err) {
-    console.error('Error al actualizar especie:', err);
+    console.error("Error al actualizar especie:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Eliminar especie
 app.delete('/Especies/Eliminar/:id', async (req, res) => {
@@ -965,13 +986,21 @@ app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) =
     let imagenUrl = null;
 
     if (req.file) {
-      try {
-        const result = await cloudinary.uploader.upload(req.file.path);
-        imagenUrl = result.secure_url;
-      } catch (err) {
-        console.error('Error subiendo imagen a Cloudinary:', err.message);
-        return res.status(500).json({ error: 'Error al subir la imagen' });
-      }
+      const fileName = `razas/${Date.now()}_${req.file.originalname}`;
+      const { error } = await supabase.storage
+        .from("imagenes")
+        .upload(fileName, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      const { data: publicUrl } = supabase.storage
+        .from("imagenes")
+        .getPublicUrl(fileName);
+
+      imagenUrl = publicUrl.publicUrl;
     }
 
     const sql = "INSERT INTO Raza (raza, descripcion, imagen, id_especie) VALUES (?, ?, ?, ?)";
@@ -985,24 +1014,37 @@ app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) =
       imagen: imagenUrl,
       id_especie
     });
-
   } catch (err) {
-    console.error('Error registrando raza:', err.message);
+    console.error("Error registrando raza:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 
 // Actualizar raza
-app.put('/Razas/Actualizar/:id', uploadRazas.single('imagen'), async (req, res) => {
+app.put('/Razas/Actualizar/:id', upload.single('imagen'), async (req, res) => {
   const { id } = req.params;
   const { raza, descripcion } = req.body;
 
   try {
     let imagenUrl = null;
+
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path);
-      imagenUrl = result.secure_url;
+      const fileName = `razas/${Date.now()}_${req.file.originalname}`;
+      const { error } = await supabase.storage
+        .from("imagenes")
+        .upload(fileName, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      const { data: publicUrl } = supabase.storage
+        .from("imagenes")
+        .getPublicUrl(fileName);
+
+      imagenUrl = publicUrl.publicUrl;
     }
 
     let sql, params;
@@ -1028,7 +1070,7 @@ app.put('/Razas/Actualizar/:id', uploadRazas.single('imagen'), async (req, res) 
       res.status(404).json({ mensaje: "No hay raza registrada con ese ID" });
     }
   } catch (err) {
-    console.error('Error al actualizar raza:', err);
+    console.error("Error al actualizar raza:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
