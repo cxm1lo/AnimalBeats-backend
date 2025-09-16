@@ -35,7 +35,7 @@ app.use(bodyParser.json());
 
 // Creacion de doc swagger
 import swaggerUI from 'swagger-ui-express';
-import swaggerDocumentation from './swagger.json' with {type:'json'};
+import swaggerDocumentation from './swagger.json' with {type: 'json'};
 
 app.use(express.json());
 app.use('/documentacion-api-animalbeats', swaggerUI.serve, swaggerUI.setup(swaggerDocumentation));
@@ -226,6 +226,11 @@ app.post('/usuario/Crear', async (req, res) => {
   const { n_documento, nombre, correoelectronico, contrasena, id_documento, id_rol } = req.body;
 
   try {
+    //Valida si rol es admin pero correo no es el predeterminado
+    if (id_rol == 1 && correoelectronico.toLowerCase() !== 'administrador@animalbeats.com') {
+      return res.status(400).json({ error: 'Solo se permite el correo predeterminado para rol Administrador' });
+    }
+
     const hashedPassword = await bcrypt.hash(contrasena, 10);
 
     const sqlInsert = `
@@ -233,7 +238,7 @@ app.post('/usuario/Crear', async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const estado = 'activo'; // estado fijo
+    const estado = 'Activo';
 
     const [resultado] = await conexion.execute(sqlInsert, [
       n_documento, nombre, correoelectronico, hashedPassword, id_documento, id_rol, estado,
