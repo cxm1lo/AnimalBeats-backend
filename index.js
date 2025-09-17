@@ -842,14 +842,13 @@ app.get('/Especies/:id', async (req, res) => {
 });
 
 // Crear especie
-app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
-  const { Especie } = req.body;
-
+app.post("/Especies/Crear", upload.single("imagen"), async (req, res) => {
   try {
     let imagenUrl = null;
 
     if (req.file) {
       const fileName = `especies/${Date.now()}_${req.file.originalname}`;
+
       const { error } = await supabase.storage
         .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
@@ -866,24 +865,24 @@ app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
       imagenUrl = publicUrl.publicUrl;
     }
 
-    const sql = "INSERT INTO Especie (especie, imagen) VALUES (?, ?)";
-    const [resultado] = await conexion.execute(sql, [Especie, imagenUrl]);
+    const [resultado] = await conexion.execute(
+      "INSERT INTO Especie (especie, imagen) VALUES (?, ?)",
+      [req.body.Especie, imagenUrl]
+    );
 
-    res.status(201).json({
-      mensaje: "Especie creada correctamente",
+    res.json({
+      mensaje: "Especie creada",
       id: resultado.insertId,
-      especie: Especie,
-      imagen: imagenUrl
+      imagen: imagenUrl,
     });
   } catch (err) {
-    console.error("Error registrando especie:", err.message);
+    console.error("Error creando especie:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-
 // Actualizar especie
-app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) => {
+app.put("/Especies/Actualizar/:id", upload.single("imagen"), async (req, res) => {
   const { id } = req.params;
   const { Especie } = req.body;
 
@@ -892,6 +891,7 @@ app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) =>
 
     if (req.file) {
       const fileName = `especies/${Date.now()}_${req.file.originalname}`;
+
       const { error } = await supabase.storage
         .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
@@ -920,15 +920,16 @@ app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) =>
     const [resultado] = await conexion.execute(sql, params);
 
     if (resultado.affectedRows > 0) {
-      res.json({ mensaje: "Especie actualizada correctamente", imagen: imagenUrl });
+      res.json({ mensaje: "Especie actualizada correctamente" });
     } else {
       res.status(404).json({ mensaje: "Especie no encontrada" });
     }
   } catch (err) {
-    console.error("Error al actualizar especie:", err.message);
+    console.error("Error actualizando especie:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 // Eliminar especie
@@ -980,6 +981,7 @@ app.get('/Razas/:id', async (req, res) => {
 });
 
 // Crear raza
+// Crear raza
 app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) => {
   const { id_especie } = req.params;
   const { raza, descripcion } = req.body;
@@ -989,6 +991,7 @@ app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) =
 
     if (req.file) {
       const fileName = `razas/${Date.now()}_${req.file.originalname}`;
+
       const { error } = await supabase.storage
         .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
@@ -1005,8 +1008,14 @@ app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) =
       imagenUrl = publicUrl.publicUrl;
     }
 
-    const sql = "INSERT INTO Raza (raza, descripcion, imagen, id_especie) VALUES (?, ?, ?, ?)";
-    const [resultado] = await conexion.execute(sql, [raza, descripcion, imagenUrl, id_especie]);
+    const sql =
+      "INSERT INTO Raza (raza, descripcion, imagen, id_especie) VALUES (?, ?, ?, ?)";
+    const [resultado] = await conexion.execute(sql, [
+      raza,
+      descripcion,
+      imagenUrl,
+      id_especie,
+    ]);
 
     res.status(201).json({
       mensaje: "Raza ingresada correctamente",
@@ -1014,14 +1023,13 @@ app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) =
       raza,
       descripcion,
       imagen: imagenUrl,
-      id_especie
+      id_especie,
     });
   } catch (err) {
     console.error("Error registrando raza:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // Actualizar raza
 app.put('/Razas/Actualizar/:id', upload.single('imagen'), async (req, res) => {
@@ -1033,6 +1041,7 @@ app.put('/Razas/Actualizar/:id', upload.single('imagen'), async (req, res) => {
 
     if (req.file) {
       const fileName = `razas/${Date.now()}_${req.file.originalname}`;
+
       const { error } = await supabase.storage
         .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
@@ -1066,7 +1075,7 @@ app.put('/Razas/Actualizar/:id', upload.single('imagen'), async (req, res) => {
         id,
         raza,
         descripcion,
-        imagen: imagenUrl
+        imagen: imagenUrl,
       });
     } else {
       res.status(404).json({ mensaje: "No hay raza registrada con ese ID" });
@@ -1076,6 +1085,7 @@ app.put('/Razas/Actualizar/:id', upload.single('imagen'), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Eliminar raza
 app.delete('/Razas/Eliminar/:id', async (req, res) => {

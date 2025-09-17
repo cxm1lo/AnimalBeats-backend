@@ -1,16 +1,8 @@
-import multer from 'multer';
-import path from 'path';
+import multer from "multer";
 
-// Configuración de almacenamiento en disco
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-
+// Usamos memoria, no guardamos en disco
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 export default upload;
+
