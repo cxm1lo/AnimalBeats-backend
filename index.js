@@ -851,7 +851,7 @@ app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
     if (req.file) {
       const fileName = `especies/${Date.now()}_${req.file.originalname}`;
       const { error } = await supabase.storage
-        .from("imagenes")
+        .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
           upsert: true,
@@ -860,7 +860,7 @@ app.post('/Especies/Crear', upload.single('imagen'), async (req, res) => {
       if (error) throw error;
 
       const { data: publicUrl } = supabase.storage
-        .from("imagenes")
+        .from("img-animalbeats")
         .getPublicUrl(fileName);
 
       imagenUrl = publicUrl.publicUrl;
@@ -893,7 +893,7 @@ app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) =>
     if (req.file) {
       const fileName = `especies/${Date.now()}_${req.file.originalname}`;
       const { error } = await supabase.storage
-        .from("imagenes")
+        .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
           upsert: true,
@@ -902,7 +902,7 @@ app.put('/Especies/Actualizar/:id', upload.single('imagen'), async (req, res) =>
       if (error) throw error;
 
       const { data: publicUrl } = supabase.storage
-        .from("imagenes")
+        .from("img-animalbeats")
         .getPublicUrl(fileName);
 
       imagenUrl = publicUrl.publicUrl;
@@ -990,7 +990,7 @@ app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) =
     if (req.file) {
       const fileName = `razas/${Date.now()}_${req.file.originalname}`;
       const { error } = await supabase.storage
-        .from("imagenes")
+        .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
           upsert: true,
@@ -999,7 +999,7 @@ app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) =
       if (error) throw error;
 
       const { data: publicUrl } = supabase.storage
-        .from("imagenes")
+        .from("img-animalbeats")
         .getPublicUrl(fileName);
 
       imagenUrl = publicUrl.publicUrl;
@@ -1034,7 +1034,7 @@ app.put('/Razas/Actualizar/:id', upload.single('imagen'), async (req, res) => {
     if (req.file) {
       const fileName = `razas/${Date.now()}_${req.file.originalname}`;
       const { error } = await supabase.storage
-        .from("imagenes")
+        .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
           upsert: true,
@@ -1043,7 +1043,7 @@ app.put('/Razas/Actualizar/:id', upload.single('imagen'), async (req, res) => {
       if (error) throw error;
 
       const { data: publicUrl } = supabase.storage
-        .from("imagenes")
+        .from("img-animalbeats")
         .getPublicUrl(fileName);
 
       imagenUrl = publicUrl.publicUrl;
