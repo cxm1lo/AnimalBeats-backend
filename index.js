@@ -1199,6 +1199,7 @@ app.get('/Citas/Listado', async (req, res) => {
         UV.nombre AS nombre_veterinario,
         C.fecha,
         C.Descripcion
+        C.estado
       FROM Citas C
       INNER JOIN Mascota M ON C.id_Mascota = M.id
       INNER JOIN Usuarios UC ON C.id_cliente = UC.n_documento
@@ -1224,8 +1225,8 @@ app.post('/Citas/Registrar', async (req, res) => {
   const { id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion } = req.body;
   try {
     const [resultado] = await conexion.execute(
-      `INSERT INTO Citas (id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO Citas (id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, estado)
+       VALUES (?, ?, ?, ?, ?, ?, "Pendiente")`,
       [id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion]
     );
     res.status(201).json({ mensaje: 'Cita registrada correctamente', resultado });
@@ -1253,6 +1254,7 @@ app.get('/Citas/:id', async (req, res) => {
         UV.nombre AS nombre_veterinario,
         C.fecha,
         C.Descripcion
+        C.estado
       FROM Citas C
       INNER JOIN Mascota M ON C.id_Mascota = M.id
       INNER JOIN Usuarios UC ON C.id_cliente = UC.n_documento
@@ -1276,13 +1278,13 @@ app.get('/Citas/:id', async (req, res) => {
 // Actualizar una cita por ID
 app.put('/Citas/Actualizar/:id', async (req, res) => {
   const id = req.params.id;
-  const { id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion } = req.body;
+  const { id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, estado } = req.body;
   try {
     const [resultado] = await conexion.execute(
       `UPDATE Citas 
-       SET id_Mascota = ?, id_cliente = ?, id_Servicio = ?, id_veterinario = ?, fecha = ?, Descripcion = ?
+       SET id_Mascota = ?, id_cliente = ?, id_Servicio = ?, id_veterinario = ?, fecha = ?, Descripcion = ?, estado = ?
        WHERE id = ?`,
-      [id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, id]
+      [id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, estado, id]
     );
     if (resultado.affectedRows > 0) {
       res.json({ mensaje: 'Cita actualizada correctamente', resultado });
