@@ -404,18 +404,15 @@ app.delete('/roles/Eliminar/:id', async (req, res) => {
 });
 
 // ==========================
-// Perfil Veterinario (Rutas corregidas y robustas)
+// Perfil Veterinario
 // ==========================
 
 
-// Sirve carpeta local (si usas almacenamiento local con multer.diskStorage)
 app.use('/uploads/veterinarios', express.static(path.join(__dirname, 'uploads/veterinarios')));
 
-/**
- * Crear /veterinarios
- * - Acepta multipart/form-data con campo 'imagen' y campos textuales.
- * - Maneja tanto storage local (req.file.filename) como cloud (req.file.path con URL).
- */
+
+ //Crear /veterinarios
+
 app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
   try {
     const {
@@ -440,9 +437,7 @@ app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
       return res.status(400).json({ mensaje: 'Edad, altura o años de experiencia tienen formato inválido' });
     }
 
-    // Determinar imagen_url según storage
-    // Si req.file.path existe y parece una URL (cloudinary u otro), la usamos.
-    // Sino, si se usó storage local y existe filename, construimos URL con SERVER_URL.
+    
     let imagen_url = null;
     if (req.file) {
       if (req.file.path && String(req.file.path).startsWith('http')) {
@@ -476,7 +471,7 @@ app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
     });
   } catch (err) {
     console.error('Error al crear veterinario:', err?.message ?? err, err);
-    // En producción quizá quieras esconder stack; aquí devolvemos info útil para depuración
+    
     return res.status(500).json({ error: 'Error al crear veterinario', details: err?.message || String(err) });
   }
 });
