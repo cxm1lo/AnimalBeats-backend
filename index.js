@@ -407,53 +407,84 @@ app.delete('/roles/Eliminar/:id', async (req, res) => {
 // Perfil Veterinario
 // ==========================
 
+import multer from "multer";
 
-app.use('/uploads/veterinarios', express.static(path.join(__dirname, 'uploads/veterinarios')));
+// Usar memoria en lugar de disco para subir imágenes
+const upload = multer({ storage: multer.memoryStorage() });
 
-
- //Crear /veterinarios
-
-app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
+/**
+ * Crear veterinario
+ */
+app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
   try {
     const {
       nombre_completo,
       estudios_especialidad,
       edad: edadRaw,
       altura: alturaRaw,
-      anios_experiencia: aniosRaw
+      anios_experiencia: aniosRaw,
     } = req.body;
 
     // Validación básica
-    if (!nombre_completo || !estudios_especialidad || !edadRaw || !alturaRaw || !aniosRaw) {
-      return res.status(400).json({ mensaje: 'Faltan campos obligatorios' });
+    if (
+      !nombre_completo ||
+      !estudios_especialidad ||
+      !edadRaw ||
+      !alturaRaw ||
+      !aniosRaw
+    ) {
+      return res.status(400).json({ mensaje: "Faltan campos obligatorios" });
     }
 
-    // Convertir tipos
+    // Conversión de tipos
     const edad = parseInt(edadRaw, 10);
     const altura = parseFloat(alturaRaw);
     const anios_experiencia = parseInt(aniosRaw, 10);
 
-    if (Number.isNaN(edad) || Number.isNaN(altura) || Number.isNaN(anios_experiencia)) {
-      return res.status(400).json({ mensaje: 'Edad, altura o años de experiencia tienen formato inválido' });
+    if (
+      Number.isNaN(edad) ||
+      Number.isNaN(altura) ||
+      Number.isNaN(anios_experiencia)
+    ) {
+      return res.status(400).json({
+        mensaje: "Edad, altura o años de experiencia tienen formato inválido",
+      });
     }
 
-    
+    // Subida de imagen a Supabase Storage
     let imagen_url = null;
     if (req.file) {
-      if (req.file.path && String(req.file.path).startsWith('http')) {
-        imagen_url = req.file.path;
-      } else if (req.file.filename) {
-        const serverUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
-        imagen_url = `${serverUrl}/uploads/veterinarios/${req.file.filename}`;
-      } else if (req.file.path) {
-        const serverUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
-        imagen_url = `${serverUrl}/${req.file.path.replace(/^\/+/, '')}`;
+      const fileExt = req.file.originalname.split(".").pop();
+      const fileName = `vet_${Date.now()}.${fileExt}`;
+
+      const { error } = await supabase.storage
+        .from("veterinarios") // Nombre del bucket en Supabase
+        .upload(fileName, req.file.buffer, {
+          contentType: req.file.mimetype,
+        });
+
+      if (error) {
+        console.error("❌ Error subiendo imagen a Supabase:", error.message);
+        return res.status(500).json({
+          mensaje: "Error subiendo imagen a Supabase",
+          details: error.message,
+        });
       }
+
+      // Obtener URL pública de la imagen
+      const { data } = supabase.storage
+        .from("veterinarios")
+        .getPublicUrl(fileName);
+
+      imagen_url = data.publicUrl;
     }
 
-    const sql = `INSERT INTO Veterinarios 
-      (nombre_completo, estudios_especialidad, edad, altura, anios_experiencia, imagen_url)
-      VALUES (?, ?, ?, ?, ?, ?)`;
+    // Insertar en la base de datos
+    const sql = `
+      INSERT INTO Veterinarios 
+      (nombre_completo, estudios_especialidad, edad, altura, anios_experiencia, imagen_url, activo, creado_en)
+      VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
+    `;
 
     const [resultado] = await conexion.execute(sql, [
       nombre_completo,
@@ -465,74 +496,88 @@ app.post('/veterinarios', upload.single('imagen'), async (req, res) => {
     ]);
 
     return res.status(201).json({
-      mensaje: 'Veterinario creado correctamente',
+      mensaje: "Veterinario creado correctamente",
       id: resultado.insertId,
-      imagen_url
+      imagen_url,
     });
   } catch (err) {
-    console.error('Error al crear veterinario:', err?.message ?? err, err);
-    
-    return res.status(500).json({ error: 'Error al crear veterinario', details: err?.message || String(err) });
+    console.error("🔥 Error al crear veterinario:", err?.message ?? err);
+    return res.status(500).json({
+      error: "Error al crear veterinario",
+      details: err?.message || String(err),
+    });
   }
 });
 
 /**
  * Listar veterinarios activos
  */
-app.get('/veterinarios', async (req, res) => {
+app.get("/veterinarios", async (req, res) => {
   try {
     const [rows] = await conexion.execute(
-      'SELECT * FROM Veterinarios WHERE activo = 1 ORDER BY creado_en DESC'
+      "SELECT * FROM Veterinarios WHERE activo = 1 ORDER BY creado_en DESC"
     );
     res.json(rows);
   } catch (error) {
-    console.error('Error al consultar veterinarios:', error?.message ?? error, error);
-    res.status(500).json({ mensaje: 'Error al consultar veterinarios', details: error?.message || String(error) });
+    console.error("❌ Error al consultar veterinarios:", error?.message ?? error);
+    res.status(500).json({
+      mensaje: "Error al consultar veterinarios",
+      details: error?.message || String(error),
+    });
   }
 });
 
-
 /**
- * Consultar /veterinarios/:id
+ * Consultar veterinario por id
  */
-app.get('/veterinarios/:id', async (req, res) => {
+app.get("/veterinarios/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const [rows] = await conexion.execute('SELECT * FROM Veterinarios WHERE id_veterinario = ?', [id]);
+    const [rows] = await conexion.execute(
+      "SELECT * FROM Veterinarios WHERE id_veterinario = ?",
+      [id]
+    );
 
     if (rows.length === 0) {
-      return res.status(404).json({ mensaje: 'Veterinario no encontrado' });
+      return res.status(404).json({ mensaje: "Veterinario no encontrado" });
     }
 
     res.json(rows[0]);
   } catch (error) {
-    console.error('Error al consultar veterinario:', error?.message ?? error, error);
-    res.status(500).json({ mensaje: 'Error al consultar veterinario', details: error?.message || String(error) });
+    console.error("❌ Error al consultar veterinario:", error?.message ?? error);
+    res.status(500).json({
+      mensaje: "Error al consultar veterinario",
+      details: error?.message || String(error),
+    });
   }
 });
 
 /**
- * Eliminar
+ * Eliminar veterinario (soft delete)
  */
-app.delete('/veterinarios/:id', async (req, res) => {
+app.delete("/veterinarios/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
     const [resultado] = await conexion.execute(
-      'UPDATE Veterinarios SET activo = 0 WHERE id_veterinario = ?',
+      "UPDATE Veterinarios SET activo = 0 WHERE id_veterinario = ?",
       [id]
     );
 
     if (resultado.affectedRows === 0) {
-      return res.status(404).json({ mensaje: 'Veterinario no encontrado' });
+      return res.status(404).json({ mensaje: "Veterinario no encontrado" });
     }
 
-    res.json({ mensaje: 'Veterinario marcado como eliminado' });
+    res.json({ mensaje: "Veterinario marcado como eliminado" });
   } catch (error) {
-    console.error('Error al eliminar veterinario:', error?.message ?? error, error);
-    res.status(500).json({ mensaje: 'Error al eliminar veterinario', details: error?.message || String(error) });
+    console.error("❌ Error al eliminar veterinario:", error?.message ?? error);
+    res.status(500).json({
+      mensaje: "Error al eliminar veterinario",
+      details: error?.message || String(error),
+    });
   }
 });
+
 
 
 
