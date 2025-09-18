@@ -117,7 +117,7 @@ app.post('/registro', async (req, res) => {
       INSERT INTO Usuarios (n_documento, correoelectronico, contrasena, id_documento, nombre, id_rol, estado)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-    await conexion.execute(sql, [n_documento, correoelectronico, hash, id_documento, nombre, id_rol, 'activo']);
+    await conexion.execute(sql, [n_documento, correoelectronico, hash, id_documento, nombre, id_rol, 'Activo']);
 
     res.status(201).json({ mensaje: 'Usuario registrado exitosamente', rol: rolTexto });
   } catch (err) {
