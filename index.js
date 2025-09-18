@@ -1,12 +1,10 @@
 import dotenv from 'dotenv';
 dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import upload from './config/multer.js';
+import upload from './config/multer.js'; 
 import { createClient } from "@supabase/supabase-js";
-
-
-
 
 console.log("Variables de entorno:");
 console.log("DB_HOST:", process.env.DB_HOST);
@@ -24,6 +22,7 @@ import bcrypt from 'bcrypt';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -34,15 +33,18 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use('/uploads', express.static('uploads'));
 
-
 // Creacion de doc swagger
 import swaggerUI from 'swagger-ui-express';
-import swaggerDocumentation from './swagger.json' with {type: 'json'};
+import swaggerDocumentation from './swagger.json' with { type: 'json' };
 
 app.use(express.json());
-app.use('/documentacion-api-animalbeats', swaggerUI.serve, swaggerUI.setup(swaggerDocumentation));
+app.use(
+  '/documentacion-api-animalbeats',
+  swaggerUI.serve,
+  swaggerUI.setup(swaggerDocumentation)
+);
 
-// Conexion a storage de supabase
+// ✅ Conexion a storage de Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
@@ -406,11 +408,6 @@ app.delete('/roles/Eliminar/:id', async (req, res) => {
 // ==========================
 // Perfil Veterinario
 // ==========================
-
-import multer from "multer";
-
-// Usar memoria en lugar de disco para subir imágenes
-const upload = multer({ storage: multer.memoryStorage() });
 
 /**
  * Crear veterinario
