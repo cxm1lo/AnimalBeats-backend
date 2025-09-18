@@ -531,7 +531,7 @@ app.get("/veterinarios/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await conexion.execute(
-      "SELECT * FROM Veterinarios WHERE id_veterinario = ?",
+      "SELECT * FROM Veterinarios WHERE id = ?",
       [id]
     );
 
@@ -557,7 +557,7 @@ app.delete("/veterinarios/:id", async (req, res) => {
     const { id } = req.params;
 
     const [resultado] = await conexion.execute(
-      "UPDATE Veterinarios SET activo = 0 WHERE id_veterinario = ?",
+      "UPDATE Veterinarios SET activo = 0 WHERE id = ?",
       [id]
     );
 
