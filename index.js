@@ -454,7 +454,7 @@ app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
       const fileName = `veterinarios/${Date.now()}_${req.file.originalname}`;
 
       const { error } = await supabase.storage
-        .from("img-animalbeats") // ✅ mismo bucket que especies
+        .from("img-animalbeats") // bucket de supabase
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
           upsert: true, // permite sobrescribir si ya existe
