@@ -3,7 +3,7 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-import upload from './config/multer.js'; 
+import upload from './config/multer.js';
 import { createClient } from "@supabase/supabase-js";
 
 console.log("Variables de entorno:");
@@ -451,29 +451,23 @@ app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
     // Subida de imagen a Supabase Storage
     let imagen_url = null;
     if (req.file) {
-      const fileExt = req.file.originalname.split(".").pop();
-      const fileName = `vet_${Date.now()}.${fileExt}`;
+      const fileName = `veterinarios/${Date.now()}_${req.file.originalname}`;
 
       const { error } = await supabase.storage
-        .from("veterinarios") // Nombre del bucket en Supabase
+        .from("img-animalbeats") // ✅ mismo bucket que especies
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
+          upsert: true, // permite sobrescribir si ya existe
         });
 
-      if (error) {
-        console.error("❌ Error subiendo imagen a Supabase:", error.message);
-        return res.status(500).json({
-          mensaje: "Error subiendo imagen a Supabase",
-          details: error.message,
-        });
-      }
+      if (error) throw error;
 
       // Obtener URL pública de la imagen
-      const { data } = supabase.storage
-        .from("veterinarios")
+      const { data: publicUrl } = supabase.storage
+        .from("img-animalbeats")
         .getPublicUrl(fileName);
 
-      imagen_url = data.publicUrl;
+      imagen_url = publicUrl.publicUrl;
     }
 
     // Insertar en la base de datos
@@ -492,19 +486,20 @@ app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
       imagen_url,
     ]);
 
-    return res.status(201).json({
+    res.status(201).json({
       mensaje: "Veterinario creado correctamente",
       id: resultado.insertId,
       imagen_url,
     });
   } catch (err) {
     console.error("🔥 Error al crear veterinario:", err?.message ?? err);
-    return res.status(500).json({
+    res.status(500).json({
       error: "Error al crear veterinario",
       details: err?.message || String(err),
     });
   }
 });
+
 
 /**
  * Listar veterinarios activos
