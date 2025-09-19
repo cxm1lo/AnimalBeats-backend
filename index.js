@@ -265,7 +265,7 @@ app.put('/usuario/Actualizar/:n_documento', async (req, res) => {
   const { nombre, correoelectronico, id_documento, id_rol, n_documento_original } = req.body;
 
 
-  const estado = 'activo';
+  const estado = 'Activo';
 
   const sqlUpdate = `
     UPDATE Usuarios
