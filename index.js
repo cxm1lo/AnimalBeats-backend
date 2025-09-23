@@ -819,7 +819,20 @@ app.get('/Citas/mascota/:id', async (req, res) => {
   const id = req.params.id;
   try {
     const [resultado] = await conexion.execute(
-      'SELECT C.*, S.servicio FROM Citas C join Servicios S on S.id = C.id_servicio WHERE C.id_mascota = ?', [id]
+      `SELECT 
+         C.id,
+         C.id_mascota,
+         C.id_cliente,
+         C.id_servicio,
+         C.id_veterinario,
+         DATE_FORMAT(C.fecha, '%d-%m-%Y %H:%i') AS fecha,
+         C.descripcion,
+         C.estado,
+         S.servicio
+       FROM Citas C
+       JOIN Servicios S ON S.id = C.id_servicio
+       WHERE C.id_mascota = ?`,
+      [id]
     );
     if (resultado.length > 0) {
       res.json(resultado);
@@ -832,14 +845,23 @@ app.get('/Citas/mascota/:id', async (req, res) => {
   }
 });
 
+// Recordatorios de la mascota para el historial
 app.get('/recordatorio/mascota/:id', async (req, res) => {
   const id = req.params.id;
   try {
-    const [resultado] = await conexion.execute('select fecha, descripcion, estado from Recordatorios where id_mascota = ?', [id]);
+    const [resultado] = await conexion.execute(
+      `SELECT 
+         DATE_FORMAT(fecha, '%d-%m-%Y %H:%i') AS fecha,
+         descripcion,
+         estado
+       FROM Recordatorios 
+       WHERE id_mascota = ?`,
+      [id]
+    );
     if (resultado.length > 0) {
       res.json(resultado);
     } else {
-      res.status(404).json({ mensaje: 'No hay recordatorios para esta mascota' })
+      res.status(404).json({ mensaje: 'No hay recordatorios para esta mascota' });
     }
   } catch (error) {
     console.error('Error al buscar recordatorio:', error);
@@ -1229,7 +1251,7 @@ app.get('/Citas/Listado', async (req, res) => {
         S.servicio AS nombre_servicio,
         C.id_veterinario,
         V.nombre_completo AS nombre_veterinario,
-        C.fecha,
+        DATE_FORMAT(C.fecha, '%d-%m-%Y %H:%i') AS fecha,
         C.Descripcion,
         C.estado
       FROM Citas C
