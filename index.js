@@ -1230,7 +1230,7 @@ app.get('/Citas/Listado', async (req, res) => {
         C.id_veterinario,
         UV.nombre AS nombre_veterinario,
         C.fecha,
-        C.Descripcion
+        C.Descripcion,
         C.estado
       FROM Citas C
       INNER JOIN Mascota M ON C.id_Mascota = M.id
