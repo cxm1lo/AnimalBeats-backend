@@ -1254,12 +1254,12 @@ app.get('/Citas/Listado', async (req, res) => {
 
 // Registrar nueva cita
 app.post('/Citas/Registrar', async (req, res) => {
-  const { id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion } = req.body;
+  const { id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, estado } = req.body;
   try {
     const [resultado] = await conexion.execute(
       `INSERT INTO Citas (id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, estado)
-       VALUES (?, ?, ?, ?, ?, ?, "Pendiente")`,
-      [id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion]
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, estado]
     );
     res.status(201).json({ mensaje: 'Cita registrada correctamente', resultado });
   } catch (error) {
