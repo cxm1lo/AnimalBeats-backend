@@ -1228,7 +1228,7 @@ app.get('/Citas/Listado', async (req, res) => {
         C.id_Servicio,
         S.servicio AS nombre_servicio,
         C.id_veterinario,
-        UV.nombre AS nombre_veterinario,
+        V.nombre_completo AS nombre_veterinario,
         C.fecha,
         C.Descripcion,
         C.estado
@@ -1236,7 +1236,7 @@ app.get('/Citas/Listado', async (req, res) => {
       INNER JOIN Mascota M ON C.id_Mascota = M.id
       INNER JOIN Usuarios UC ON C.id_cliente = UC.n_documento
       INNER JOIN Servicios S ON C.id_Servicio = S.id
-      INNER JOIN Usuarios UV ON C.id_veterinario = UV.n_documento
+      INNER JOIN Veterinarios V ON C.id_veterinario = V.id
       ORDER BY C.fecha DESC
     `);
 
