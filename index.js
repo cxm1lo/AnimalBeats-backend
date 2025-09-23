@@ -1285,7 +1285,7 @@ app.get('/Citas/:id', async (req, res) => {
         C.id_veterinario,
         UV.nombre AS nombre_veterinario,
         C.fecha,
-        C.Descripcion
+        C.Descripcion,
         C.estado
       FROM Citas C
       INNER JOIN Mascota M ON C.id_Mascota = M.id
@@ -1352,7 +1352,7 @@ app.delete('/Citas/Eliminar/:id', async (req, res) => {
 * ======================== */
 app.get('/servicios/Listado', async (req, res) => {
   try {
-    const [resultado] = await conexion.execute('SELECT * FROM servicios');
+    const [resultado] = await conexion.execute('SELECT * FROM Servicios');
     if (resultado.length > 0) {
       res.json(resultado);
     } else {
