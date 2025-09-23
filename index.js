@@ -1351,21 +1351,64 @@ app.put('/Citas/Actualizar/:id', async (req, res) => {
   }
 });
 
-// Eliminar una cita por ID
-app.delete('/Citas/Eliminar/:id', async (req, res) => {
+// Cambiar estado de una cita a "Cancelado".
+app.put('/Citas/Cancelar/:id', async (req, res) => {
   const id = req.params.id;
   try {
     const [resultado] = await conexion.execute(
-      'DELETE FROM Citas WHERE id = ?', [id]
+      'UPDATE Citas SET estado = ? WHERE id = ?',
+      ['Cancelado', id]
     );
+
     if (resultado.affectedRows > 0) {
-      res.json({ mensaje: 'Cita eliminada correctamente', resultado });
+      res.json({ mensaje: 'Cita cancelada correctamente', resultado });
     } else {
-      res.status(404).json({ mensaje: 'Cita no encontrada para eliminar' });
+      res.status(404).json({ mensaje: 'Cita no encontrada para cancelar' });
     }
   } catch (error) {
-    console.error('Error al eliminar cita:', error);
-    res.status(500).json({ error: 'Error al eliminar la cita' });
+    console.error('Error al cancelar la cita:', error);
+    res.status(500).json({ error: 'Error al cancelar la cita' });
+  }
+});
+
+// Cambiar estado de una cita a "Confirmado"
+app.put('/Citas/Confirmar/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const [resultado] = await conexion.execute(
+      'UPDATE Citas SET estado = ? WHERE id = ?',
+      ['Confirmado', id]
+    );
+
+    if (resultado.affectedRows > 0) {
+      res.json({ mensaje: 'Cita confirmada correctamente', resultado });
+    } else {
+      res.status(404).json({ mensaje: 'Cita no encontrada para confirmar' });
+    }
+  } catch (error) {
+    console.error('Error al confirmar la cita:', error);
+    res.status(500).json({ error: 'Error al confirmar la cita' });
+  }
+});
+
+
+// Cambiar estado de una cita a "Pendiente" 
+app.put('/Citas/Pendiente/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const [resultado] = await conexion.execute(
+      'UPDATE Citas SET estado = ? WHERE id = ?',
+      ['Pendiente', id]
+    );
+
+    if (resultado.affectedRows > 0) {
+      res.json({ mensaje: 'Cita actualizada a pendiente correctamente', resultado });
+    } else {
+      res.status(404).json({ mensaje: 'Cita no encontrada para actualizar a pendiente' });
+    }
+  } catch (error) {
+    console.error('Error al actualizar la cita a pendiente:', error);
+    res.status(500).json({ error: 'Error al actualizar la cita a pendiente' });
   }
 });
 
