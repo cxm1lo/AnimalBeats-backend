@@ -1297,24 +1297,24 @@ app.post('/Citas/Registrar', async (req, res) => {
     try {
       const [resultado] = await conexion.execute(`
         SELECT 
-          C.id,
-          C.id_Mascota,
-          M.nombre AS nombre_mascota,
-          C.id_cliente,
-          UC.nombre AS nombre_cliente,
-          C.id_Servicio,
-          S.servicio AS nombre_servicio,
-          C.id_veterinario,
-          UV.nombre_completo AS nombre_veterinario,
-          C.fecha,
-          C.Descripcion,
-          C.estado
-        FROM Citas C
-        INNER JOIN Mascota M ON C.id_Mascota = M.id
-        INNER JOIN Usuarios UC ON C.id_cliente = UC.n_documento
-        INNER JOIN Servicios S ON C.id_Servicio = S.id
-        INNER JOIN Veterinarios UV ON C.id_veterinario = UV.id
-        WHERE C.id = ?
+        C.id,
+        C.id_Mascota,
+        M.nombre AS nombre_mascota,
+        C.id_cliente,
+        UC.nombre AS nombre_cliente,
+        C.id_Servicio,
+        S.servicio AS nombre_servicio,
+        C.id_veterinario,
+        UV.nombre_completo AS nombre_veterinario,
+        C.fecha,
+        C.Descripcion,
+        C.estado
+      FROM Citas C
+      INNER JOIN Mascota M ON C.id_Mascota = M.id
+      INNER JOIN Usuarios UC ON C.id_cliente = UC.n_documento
+      INNER JOIN Servicios S ON C.id_Servicio = S.id
+      INNER JOIN Veterinarios UV ON C.id_veterinario = UV.id
+      WHERE C.id = ?
 
       `, [id]);
 
@@ -1333,14 +1333,16 @@ app.post('/Citas/Registrar', async (req, res) => {
 // Actualizar una cita por ID
 app.put('/Citas/Actualizar/:id', async (req, res) => {
   const id = req.params.id;
-  const { id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, estado } = req.body;
+  const { Descripcion, estado } = req.body;
+
   try {
     const [resultado] = await conexion.execute(
       `UPDATE Citas 
-       SET id_Mascota = ?, id_cliente = ?, id_Servicio = ?, id_veterinario = ?, fecha = ?, Descripcion = ?, estado = ?
+       SET Descripcion = ?, estado = ?
        WHERE id = ?`,
-      [id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, estado, id]
+      [Descripcion, estado, id]
     );
+
     if (resultado.affectedRows > 0) {
       res.json({ mensaje: 'Cita actualizada correctamente', resultado });
     } else {
@@ -1351,6 +1353,7 @@ app.put('/Citas/Actualizar/:id', async (req, res) => {
     res.status(500).json({ error: 'Error al actualizar la cita' });
   }
 });
+
 
 // Cambiar estado de una cita a "Cancelado".
 app.put('/Citas/Cancelar/:id', async (req, res) => {
