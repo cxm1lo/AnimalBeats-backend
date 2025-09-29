@@ -1292,41 +1292,42 @@ app.post('/Citas/Registrar', async (req, res) => {
 
 // Obtener una cita por ID
 // Obtener una cita por ID con info detallada
-app.get('/Citas/:id', async (req, res) => {
-  const id = req.params.id;
-  try {
-    const [resultado] = await conexion.execute(`
-      SELECT 
-        C.id,
-        C.id_Mascota,
-        M.nombre AS nombre_mascota,
-        C.id_cliente,
-        UC.nombre AS nombre_cliente,
-        C.id_Servicio,
-        S.servicio AS nombre_servicio,
-        C.id_veterinario,
-        UV.nombre AS nombre_veterinario,
-        C.fecha,
-        C.Descripcion,
-        C.estado
-      FROM Citas C
-      INNER JOIN Mascota M ON C.id_Mascota = M.id
-      INNER JOIN Usuarios UC ON C.id_cliente = UC.n_documento
-      INNER JOIN Servicios S ON C.id_Servicio = S.id
-      INNER JOIN Usuarios UV ON C.id_veterinario = UV.n_documento
-      WHERE C.id = ?
-    `, [id]);
+  app.get('/Citas/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+      const [resultado] = await conexion.execute(`
+        SELECT 
+          C.id,
+          C.id_Mascota,
+          M.nombre AS nombre_mascota,
+          C.id_cliente,
+          UC.nombre AS nombre_cliente,
+          C.id_Servicio,
+          S.servicio AS nombre_servicio,
+          C.id_veterinario,
+          UV.nombre_completo AS nombre_veterinario,
+          C.fecha,
+          C.Descripcion,
+          C.estado
+        FROM Citas C
+        INNER JOIN Mascota M ON C.id_Mascota = M.id
+        INNER JOIN Usuarios UC ON C.id_cliente = UC.n_documento
+        INNER JOIN Servicios S ON C.id_Servicio = S.id
+        INNER JOIN Veterinarios UV ON C.id_veterinario = UV.id
+        WHERE C.id = ?
 
-    if (resultado.length > 0) {
-      res.json(resultado[0]);
-    } else {
-      res.status(404).json({ mensaje: 'Cita no encontrada' });
+      `, [id]);
+
+      if (resultado.length > 0) {
+        res.json(resultado[0]);
+      } else {
+        res.status(404).json({ mensaje: 'Cita no encontrada' });
+      }
+    } catch (error) {
+      console.error('Error al buscar la cita:', error);
+      res.status(500).json({ error: 'Error al buscar la cita' });
     }
-  } catch (error) {
-    console.error('Error al buscar la cita:', error);
-    res.status(500).json({ error: 'Error al buscar la cita' });
-  }
-});
+  });
 
 
 // Actualizar una cita por ID
