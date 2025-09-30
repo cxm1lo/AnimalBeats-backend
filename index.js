@@ -5,23 +5,16 @@ import express from 'express';
 import cors from 'cors';
 import upload from './config/multer.js';
 import { createClient } from "@supabase/supabase-js";
-
-console.log("Variables de entorno:");
-console.log("DB_HOST:", process.env.DB_HOST);
-console.log("DB_USER:", process.env.DB_USER);
-console.log("DB_PASS:", process.env.DB_PASS ? "****" : null);
-console.log("DB_NAME:", process.env.DB_NAME);
-console.log("DB_PORT:", process.env.DB_PORT);
-console.log("JWT_SECRET:", process.env.JWT_SECRET ? "****" : null);
-
-const router = express.Router();
 import jwt from 'jsonwebtoken';
-import mysql from 'mysql2/promise';
 import bodyParser from 'body-parser';
 import bcrypt from 'bcrypt';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+// Swagger
+import swaggerUI from 'swagger-ui-express';
+import swaggerDocumentation from './swagger.json' with { type: 'json' };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,52 +22,24 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET;
 
+// Middlewares
 app.use(cors());
 app.use(bodyParser.json());
 app.use('/uploads', express.static('uploads'));
-
-// Creacion de doc swagger
-import swaggerUI from 'swagger-ui-express';
-import swaggerDocumentation from './swagger.json' with { type: 'json' };
-
 app.use(express.json());
+
+// Swagger docs
 app.use(
   '/documentacion-api-animalbeats',
   swaggerUI.serve,
   swaggerUI.setup(swaggerDocumentation)
 );
 
-// ✅ Conexion a storage de Supabase
+// ✅ Cliente Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
-
-// Conexión asincrónica a la base de datos AnimalBeats
-let conexion;
-(async () => {
-  try {
-    conexion = mysql.createPool({
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASS,
-      database: process.env.DB_NAME,
-      port: process.env.DB_PORT,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-      enableKeepAlive: true,
-      keepAliveInitialDelay: 0,
-    });
-
-    app.locals.connection = conexion;
-    console.log('Conexión a la base de datos exitosa');
-  } catch (error) {
-    console.error('Error al conectar a la base de datos:', error);
-    process.exit(1);
-  }
-})();
-
 
 // Headers de la API
 app.use((req, res, next) => {
@@ -82,9 +47,6 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Methods', '*');
   next();
 });
-
-
-
 
 /* ==========================
 *  Rutas de gestión de Usuarios
@@ -115,11 +77,19 @@ app.post('/registro', async (req, res) => {
       id_rol = 2; rolTexto = 'cliente';
     }
 
-    const sql = `
-      INSERT INTO Usuarios (n_documento, correoelectronico, contrasena, id_documento, nombre, id_rol, estado)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-    await conexion.execute(sql, [n_documento, correoelectronico, hash, id_documento, nombre, id_rol, 'Activo']);
+    const { error } = await supabase.from("Usuarios").insert([
+      {
+        n_documento,
+        correoelectronico,
+        contrasena: hash,
+        id_documento,
+        nombre,
+        id_rol,
+        estado: "Activo"
+      }
+    ]);
+
+    if (error) throw error;
 
     res.status(201).json({ mensaje: 'Usuario registrado exitosamente', rol: rolTexto });
   } catch (err) {
@@ -131,8 +101,9 @@ app.post('/registro', async (req, res) => {
 // Obtener tipos de documento
 app.get('/tiposDocumento', async (req, res) => {
   try {
-    const [results] = await conexion.query('SELECT id, tipo FROM Documento');
-    res.status(200).json(results);
+    const { data, error } = await supabase.from("Documento").select("id, tipo");
+    if (error) throw error;
+    res.status(200).json(data);
   } catch (err) {
     console.error("Error en getTiposDocumento:", err);
     res.status(500).json({ mensaje: 'Error al obtener tipos de documento' });
@@ -144,16 +115,18 @@ app.post('/login', async (req, res) => {
   const { correoelectronico, contrasena } = req.body;
 
   try {
-    const [resultados] = await conexion.execute(
-      'SELECT * FROM Usuarios WHERE correoelectronico = ?',
-      [correoelectronico]
-    );
+    const { data: usuarios, error } = await supabase
+      .from("Usuarios")
+      .select("*")
+      .eq("correoelectronico", correoelectronico);
 
-    if (resultados.length === 0) {
+    if (error) throw error;
+
+    if (!usuarios || usuarios.length === 0) {
       return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
 
-    const usuario = resultados[0];
+    const usuario = usuarios[0];
     const esCorrecta = await bcrypt.compare(contrasena, usuario.contrasena);
     if (!esCorrecta) {
       return res.status(401).json({ mensaje: 'Contraseña incorrecta' });
@@ -193,19 +166,17 @@ app.post('/login', async (req, res) => {
   }
 });
 
-
 // Listar Usuarios
 app.get('/usuario/Listado', async (req, res) => {
-  const sqlQuery = `
-    SELECT u.n_documento, u.nombre, u.correoelectronico, 
-           d.tipo AS tipo_documento, u.estado, u.id_rol
-    FROM Usuarios u
-    LEFT JOIN Documento d ON u.id_documento = d.id
-    WHERE u.estado != 'Suspendido'
-  `;
   try {
-    const [resultado] = await conexion.query(sqlQuery);
-    res.json({ Usuarios: resultado });
+    const { data, error } = await supabase
+      .from("Usuarios")
+      .select("n_documento, nombre, correoelectronico, estado, id_rol, Documento(tipo)")
+      .neq("estado", "Suspendido");
+
+    if (error) throw error;
+
+    res.json({ Usuarios: data });
   } catch (err) {
     console.error('Error al obtener Usuarios:', err);
     res.status(500).json({ error: 'Error al obtener Usuarios' });
@@ -215,15 +186,15 @@ app.get('/usuario/Listado', async (req, res) => {
 // Obtener usuario por documento
 app.get('/usuario/:n_documento', async (req, res) => {
   const { n_documento } = req.params;
-  const sqlQuery = `
-    SELECT u.n_documento, u.nombre, u.correoelectronico, d.tipo AS tipo_documento
-    FROM Usuarios u
-    LEFT JOIN Documento d ON u.id_documento = d.id
-    WHERE u.n_documento = ?
-  `;
   try {
-    const [resultado] = await conexion.execute(sqlQuery, [n_documento]);
-    res.json(resultado.length > 0 ? resultado[0] : 'Usuario no encontrado');
+    const { data, error } = await supabase
+      .from("Usuarios")
+      .select("n_documento, nombre, correoelectronico, Documento(tipo)")
+      .eq("n_documento", n_documento)
+      .maybeSingle();
+
+    if (error) throw error;
+    res.json(data || 'Usuario no encontrado');
   } catch (err) {
     console.error('Error al obtener usuario:', err);
     res.status(500).json({ error: 'Error al obtener usuario' });
@@ -235,25 +206,27 @@ app.post('/usuario/Crear', async (req, res) => {
   const { n_documento, nombre, correoelectronico, contrasena, id_documento, id_rol } = req.body;
 
   try {
-    //Valida si rol es admin pero correo no es el predeterminado
     if (id_rol == 1 && correoelectronico.toLowerCase() !== 'administrador@animalbeats.com') {
       return res.status(400).json({ error: 'Solo se permite el correo predeterminado para rol Administrador' });
     }
 
     const hashedPassword = await bcrypt.hash(contrasena, 10);
 
-    const sqlInsert = `
-      INSERT INTO Usuarios (n_documento, nombre, correoelectronico, contrasena, id_documento, id_rol, estado)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    const estado = 'Activo';
-
-    const [resultado] = await conexion.execute(sqlInsert, [
-      n_documento, nombre, correoelectronico, hashedPassword, id_documento, id_rol, estado,
+    const { error } = await supabase.from("Usuarios").insert([
+      {
+        n_documento,
+        nombre,
+        correoelectronico,
+        contrasena: hashedPassword,
+        id_documento,
+        id_rol,
+        estado: "Activo"
+      }
     ]);
 
-    res.status(201).json({ mensaje: 'Usuario registrado correctamente', resultado });
+    if (error) throw error;
+
+    res.status(201).json({ mensaje: 'Usuario registrado correctamente' });
   } catch (err) {
     console.error('Error al registrar usuario:', err);
     res.status(500).json({ error: 'Error al registrar usuario' });
@@ -262,148 +235,127 @@ app.post('/usuario/Crear', async (req, res) => {
 
 // Actualizar usuario
 app.put('/usuario/Actualizar/:n_documento', async (req, res) => {
-  const { nombre, correoelectronico, id_documento, id_rol, n_documento_original } = req.body;
-
-
-  const estado = 'Activo';
-
-  const sqlUpdate = `
-    UPDATE Usuarios
-    SET nombre = ?, correoelectronico = ?, id_documento = ?, id_rol = ?, estado = ?
-    WHERE n_documento = ?
-  `;
+  const { nombre, correoelectronico, id_documento, id_rol } = req.body;
+  const { n_documento } = req.params;
 
   try {
-    const [resultado] = await conexion.execute(sqlUpdate, [
-      nombre, correoelectronico, id_documento, id_rol, estado, n_documento_original,
-    ]);
+    const { error } = await supabase
+      .from("Usuarios")
+      .update({
+        nombre,
+        correoelectronico,
+        id_documento,
+        id_rol,
+        estado: "Activo"
+      })
+      .eq("n_documento", n_documento);
 
+    if (error) throw error;
 
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: 'Usuario actualizado correctamente' });
-    } else {
-      res.status(404).json({ mensaje: 'Usuario no encontrado' });
-    }
+    res.json({ mensaje: 'Usuario actualizado correctamente' });
   } catch (err) {
     console.error('Error al actualizar usuario:', err);
     res.status(500).json({ error: 'Error al actualizar usuario' });
   }
 });
 
-
 // Suspender usuario
 app.put('/usuario/Suspender/:n_documento', async (req, res) => {
   const { n_documento } = req.params;
-
-  const sqlUpdate = `UPDATE Usuarios SET estado = 'Suspendido' WHERE n_documento = ?`;
-
   try {
-    const [resultado] = await conexion.execute(sqlUpdate, [n_documento]);
+    const { error } = await supabase
+      .from("Usuarios")
+      .update({ estado: "Suspendido" })
+      .eq("n_documento", n_documento);
 
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: 'Usuario suspendido correctamente' });
-    } else {
-      res.json('Usuario no encontrado');
-    }
+    if (error) throw error;
+    res.json({ mensaje: 'Usuario suspendido correctamente' });
   } catch (err) {
     console.error('Error al suspender usuario:', err);
     res.status(500).json({ error: 'Error al suspender usuario' });
   }
 });
 
-
-//Reactivar Usuario
-
+// Reactivar usuario
 app.put('/usuario/Reactivar/:n_documento', async (req, res) => {
   const { n_documento } = req.params;
-
-  const sqlUpdate = `UPDATE Usuarios SET estado = 'Activo' WHERE n_documento = ?`;
-
   try {
-    const [resultado] = await conexion.execute(sqlUpdate, [n_documento]);
+    const { error } = await supabase
+      .from("Usuarios")
+      .update({ estado: "Activo" })
+      .eq("n_documento", n_documento);
 
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: 'Usuario reactivado correctamente' });
-    } else {
-      res.json('Usuario no encontrado');
-    }
+    if (error) throw error;
+    res.json({ mensaje: 'Usuario reactivado correctamente' });
   } catch (err) {
     console.error('Error al reactivar usuario:', err);
     res.status(500).json({ error: 'Error al reactivar usuario' });
   }
 });
 
-//Usuario Pendiente
+// Usuario Pendiente
 app.put('/usuario/Pendiente/:n_documento', async (req, res) => {
   const { n_documento } = req.params;
-
-  const sqlUpdate = `UPDATE Usuarios SET estado = 'Pendiente' WHERE n_documento = ?`;
-
   try {
-    const [resultado] = await conexion.execute(sqlUpdate, [n_documento]);
+    const { error } = await supabase
+      .from("Usuarios")
+      .update({ estado: "Pendiente" })
+      .eq("n_documento", n_documento);
 
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: 'Usuario puesto en estado pendiente correctamente' });
-    } else {
-      res.status(404).json({ mensaje: 'Usuario no encontrado' });
-    }
+    if (error) throw error;
+    res.json({ mensaje: 'Usuario puesto en estado pendiente correctamente' });
   } catch (err) {
     console.error('Error al poner usuario en pendiente:', err);
     res.status(500).json({ error: 'Error al poner usuario en pendiente' });
   }
 });
 
+/* ==========================
+*  Rutas de gestión de Roles
+* ========================== */
 
-//Ruta Tabla de Roles
+// Listar Roles
 app.get('/roles/Listado', async (req, res) => {
-  const sqlQuery = `
-    SELECT id, rol
-    FROM Rol
-  `;
   try {
-    const [resultado] = await conexion.query(sqlQuery);
-    res.json({ roles: resultado });
+    const { data, error } = await supabase.from("Rol").select("id, rol");
+    if (error) throw error;
+    res.json({ roles: data });
   } catch (err) {
     console.error('Error al obtener roles:', err);
     res.status(500).json({ error: 'Error al obtener roles' });
   }
 });
 
-//Ruta Crear Roles
+// Crear Rol
 app.post('/roles/Crear', async (req, res) => {
   const { rol } = req.body;
   if (!rol || rol.trim() === '') {
     return res.status(400).json({ error: 'El rol es obligatorio' });
   }
   try {
-    const sqlInsert = 'INSERT INTO Rol (rol) VALUES (?)';
-    const [resultado] = await conexion.query(sqlInsert, [rol.trim()]);
-    res.json({ message: 'Rol creado correctamente', id: resultado.insertId });
+    const { data, error } = await supabase.from("Rol").insert([{ rol: rol.trim() }]).select("id").single();
+    if (error) throw error;
+    res.json({ message: 'Rol creado correctamente', id: data.id });
   } catch (err) {
     console.error('Error al crear rol:', err);
     res.status(500).json({ error: 'Error al crear rol' });
   }
 });
 
-//Ruta Eliminar Roles
-
+// Eliminar Rol
 app.delete('/roles/Eliminar/:id', async (req, res) => {
   const { id } = req.params;
-
   try {
-    const sqlDelete = 'DELETE FROM Rol WHERE id = ?';
-    const [resultado] = await conexion.query(sqlDelete, [id]);
-
-    if (resultado.affectedRows > 0) {
-      res.json({ message: 'Rol eliminado correctamente' });
-    } else {
-      res.status(404).json({ error: 'Rol no encontrado' });
-    }
+    const { error } = await supabase.from("Rol").delete().eq("id", id);
+    if (error) throw error;
+    res.json({ message: 'Rol eliminado correctamente' });
   } catch (err) {
     console.error('Error al eliminar rol:', err);
     res.status(500).json({ error: 'Error al eliminar rol' });
   }
 });
+
+
 
 // ==========================
 // Perfil Veterinario
@@ -423,13 +375,7 @@ app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
     } = req.body;
 
     // Validación básica
-    if (
-      !nombre_completo ||
-      !estudios_especialidad ||
-      !edadRaw ||
-      !alturaRaw ||
-      !aniosRaw
-    ) {
+    if (!nombre_completo || !estudios_especialidad || !edadRaw || !alturaRaw || !aniosRaw) {
       return res.status(400).json({ mensaje: "Faltan campos obligatorios" });
     }
 
@@ -438,11 +384,7 @@ app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
     const altura = parseFloat(alturaRaw);
     const anios_experiencia = parseInt(aniosRaw, 10);
 
-    if (
-      Number.isNaN(edad) ||
-      Number.isNaN(altura) ||
-      Number.isNaN(anios_experiencia)
-    ) {
+    if (Number.isNaN(edad) || Number.isNaN(altura) || Number.isNaN(anios_experiencia)) {
       return res.status(400).json({
         mensaje: "Edad, altura o años de experiencia tienen formato inválido",
       });
@@ -453,16 +395,15 @@ app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
     if (req.file) {
       const fileName = `veterinarios/${Date.now()}_${req.file.originalname}`;
 
-      const { error } = await supabase.storage
-        .from("img-animalbeats") // bucket de supabase
+      const { error: uploadError } = await supabase.storage
+        .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
-          upsert: true, // permite sobrescribir si ya existe
+          upsert: true,
         });
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
-      // Obtener URL pública de la imagen
       const { data: publicUrl } = supabase.storage
         .from("img-animalbeats")
         .getPublicUrl(fileName);
@@ -470,25 +411,27 @@ app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
       imagen_url = publicUrl.publicUrl;
     }
 
-    // Insertar en la base de datos
-    const sql = `
-      INSERT INTO Veterinarios 
-      (nombre_completo, estudios_especialidad, edad, altura, anios_experiencia, imagen_url, activo, creado_en)
-      VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
-    `;
+    // Insertar en la base de datos con Supabase
+    const { data, error } = await supabase
+      .from("Veterinarios")
+      .insert([
+        {
+          nombre_completo,
+          estudios_especialidad,
+          edad,
+          altura,
+          anios_experiencia,
+          imagen_url,
+          activo: true,
+        },
+      ])
+      .select("id");
 
-    const [resultado] = await conexion.execute(sql, [
-      nombre_completo,
-      estudios_especialidad,
-      edad,
-      altura,
-      anios_experiencia,
-      imagen_url,
-    ]);
+    if (error) throw error;
 
     res.status(201).json({
       mensaje: "Veterinario creado correctamente",
-      id: resultado.insertId,
+      id: data[0].id,
       imagen_url,
     });
   } catch (err) {
@@ -500,22 +443,23 @@ app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
   }
 });
 
-
 /**
  * Listar veterinarios activos
  */
 app.get("/veterinarios", async (req, res) => {
   try {
-    const [rows] = await conexion.execute(
-      "SELECT * FROM Veterinarios WHERE activo = 1 ORDER BY creado_en DESC"
-    );
-    res.json(rows);
+    const { data, error } = await supabase
+      .from("Veterinarios")
+      .select("*")
+      .eq("activo", true)
+      .order("creado_en", { ascending: false });
+
+    if (error) throw error;
+
+    res.json(data);
   } catch (error) {
     console.error("❌ Error al consultar veterinarios:", error?.message ?? error);
-    res.status(500).json({
-      mensaje: "Error al consultar veterinarios",
-      details: error?.message || String(error),
-    });
+    res.status(500).json({ mensaje: "Error al consultar veterinarios" });
   }
 });
 
@@ -525,22 +469,23 @@ app.get("/veterinarios", async (req, res) => {
 app.get("/veterinarios/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const [rows] = await conexion.execute(
-      "SELECT * FROM Veterinarios WHERE id = ?",
-      [id]
-    );
+    const { data, error } = await supabase
+      .from("Veterinarios")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    if (rows.length === 0) {
-      return res.status(404).json({ mensaje: "Veterinario no encontrado" });
+    if (error) {
+      if (error.code === "PGRST116") {
+        return res.status(404).json({ mensaje: "Veterinario no encontrado" });
+      }
+      throw error;
     }
 
-    res.json(rows[0]);
+    res.json(data);
   } catch (error) {
     console.error("❌ Error al consultar veterinario:", error?.message ?? error);
-    res.status(500).json({
-      mensaje: "Error al consultar veterinario",
-      details: error?.message || String(error),
-    });
+    res.status(500).json({ mensaje: "Error al consultar veterinario" });
   }
 });
 
@@ -551,54 +496,56 @@ app.delete("/veterinarios/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [resultado] = await conexion.execute(
-      "UPDATE Veterinarios SET activo = 0 WHERE id = ?",
-      [id]
-    );
+    const { data, error } = await supabase
+      .from("Veterinarios")
+      .update({ activo: false })
+      .eq("id", id);
 
-    if (resultado.affectedRows === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ mensaje: "Veterinario no encontrado" });
     }
 
     res.json({ mensaje: "Veterinario marcado como eliminado" });
   } catch (error) {
     console.error("❌ Error al eliminar veterinario:", error?.message ?? error);
-    res.status(500).json({
-      mensaje: "Error al eliminar veterinario",
-      details: error?.message || String(error),
-    });
+    res.status(500).json({ mensaje: "Error al eliminar veterinario" });
   }
 });
 
+// ==========================
+// Dashboards
+// ==========================
 
-
-
-// Dashboard de admin
-app.get('/admin/dashboard', async (req, res) => {
+/**
+ * Dashboard Admin
+ */
+app.get("/admin/dashboard", async (req, res) => {
   try {
-    // Obtener el primer administrador registrado 
-    const [adminRows] = await conexion.execute(
-      "SELECT nombre, correoelectronico FROM Usuarios WHERE id_rol = ?", [1]
-    );
+    const { data: adminRows, error: adminError } = await supabase
+      .from("Usuarios")
+      .select("nombre, correoelectronico")
+      .eq("id_rol", 1)
+      .limit(1);
 
-    if (adminRows.length === 0) {
+    if (adminError) throw adminError;
+    if (!adminRows || adminRows.length === 0) {
       return res.status(404).json({ error: "No se encontró ningún admin" });
     }
 
-    // Contar total de Usuarios que sean clientes o veterinarios 
-    const [countRows] = await conexion.execute(
-      "SELECT COUNT(*) AS total FROM Usuarios WHERE id_rol IN (2, 3)"
-    );
+    const { count, error: countError } = await supabase
+      .from("Usuarios")
+      .select("*", { count: "exact", head: true })
+      .in("id_rol", [2, 3]);
 
-    const totalClientes = countRows[0].total;
+    if (countError) throw countError;
 
-    // Enviar respuesta con datos del admin y el conteo de clientes
     res.json({
       usuario: {
         nombre: adminRows[0].nombre,
         correo: adminRows[0].correoelectronico,
       },
-      total_clientes: totalClientes,
+      total_clientes: count,
     });
   } catch (error) {
     console.error("Error en /admin/dashboard:", error);
@@ -606,110 +553,90 @@ app.get('/admin/dashboard', async (req, res) => {
   }
 });
 
-//Dashboard del cliente
-app.get('/cliente/dashboard/:n_documento', async (req, res) => {
+/**
+ * Dashboard Cliente
+ */
+app.get("/cliente/dashboard/:n_documento", async (req, res) => {
   try {
     const { n_documento } = req.params;
 
-    //Obtener datos del cliente
-    const [clienteRows] = await conexion.execute(
-      "SELECT nombre, correoelectronico FROM Usuarios WHERE n_documento = ? AND id_rol = 2",
-      [n_documento]
-    );
+    const { data: cliente, error: clienteError } = await supabase
+      .from("Usuarios")
+      .select("nombre, correoelectronico")
+      .eq("n_documento", n_documento)
+      .eq("id_rol", 2)
+      .single();
 
-    if (clienteRows.length === 0) {
+    if (clienteError) {
       return res.status(404).json({ error: "No se encontró el cliente" });
     }
 
-    //Obtener citas pendientes (fecha despues de hoy)
-    const [citasPendientes] = await conexion.execute(
-      `SELECT c.id_Mascota, m.nombre AS nombre_mascota, s.servicio, c.fecha, c.Descripcion
-       FROM Citas c
-       INNER JOIN Mascota m ON c.id_Mascota = m.id
-       INNER JOIN Servicios s ON c.id_Servicio = s.id
-       WHERE c.id_cliente = ? AND c.fecha >= CURDATE()
-       ORDER BY c.fecha ASC`,
-      [n_documento]
-    );
+    const { data: citasPendientes, error: citasError } = await supabase
+      .from("Citas")
+      .select("id_Mascota, Mascota(nombre), Servicios(servicio), fecha, Descripcion")
+      .eq("id_cliente", n_documento)
+      .gte("fecha", new Date().toISOString());
 
-    // Obtener mascotas registradas
-    const [mascotas] = await conexion.execute(
-      `SELECT m.id, m.nombre, e.Especie, r.Raza, m.fecha_nacimiento, m.estado
-       FROM Mascota m
-       INNER JOIN Especie e ON m.id_Especie = e.id
-       INNER JOIN Raza r ON m.id_Raza = r.id
-       WHERE m.id_cliente = ?`,
-      [n_documento]
-    );
+    if (citasError) throw citasError;
 
-    // Respuesta
+    const { data: mascotas, error: mascotasError } = await supabase
+      .from("Mascota")
+      .select("id, nombre, Especie(Especie), Raza(Raza), fecha_nacimiento, estado")
+      .eq("id_cliente", n_documento);
+
+    if (mascotasError) throw mascotasError;
+
     res.json({
-      usuario: {
-        nombre: clienteRows[0].nombre,
-        correo: clienteRows[0].correoelectronico,
-      },
+      usuario: cliente,
       citas_pendientes: citasPendientes,
-      mascotas: mascotas,
+      mascotas,
     });
-
   } catch (error) {
     console.error("Error en /cliente/dashboard:", error);
     res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
-//Dashboard del veterinario
-app.get('/veterinario/dashboard/:n_documento', async (req, res) => {
+/**
+ * Dashboard Veterinario
+ */
+app.get("/veterinario/dashboard/:n_documento", async (req, res) => {
   try {
     const { n_documento } = req.params;
-    console.log("Dashboard veterinario solicitado para:", n_documento);
 
-    // Datos del veterinario
-    const [veterinarioRows] = await conexion.execute(
-      "SELECT nombre, correoelectronico FROM Usuarios WHERE n_documento = ? AND id_rol = 3",
-      [n_documento]
-    );
+    const { data: veterinario, error: vetError } = await supabase
+      .from("Usuarios")
+      .select("nombre, correoelectronico")
+      .eq("n_documento", n_documento)
+      .eq("id_rol", 3)
+      .single();
 
-    if (veterinarioRows.length === 0) {
-      console.log("No se encontró veterinario con ese documento");
+    if (vetError) {
       return res.status(404).json({ error: "No se encontró el veterinario" });
     }
 
-    // Obtener todas las mascotas
-    const [mascotas] = await conexion.execute(
-      `SELECT m.id, m.nombre, e.Especie, r.Raza, m.fecha_nacimiento, m.estado
-       FROM Mascota m
-       INNER JOIN Especie e ON m.id_Especie = e.id
-       INNER JOIN Raza r ON m.id_Raza = r.id`
-    );
+    const { data: mascotas, error: mascotasError } = await supabase
+      .from("Mascota")
+      .select("id, nombre, Especie(Especie), Raza(Raza), fecha_nacimiento, estado");
 
-    // Obtener todas las citas
-    const [citasPendientes] = await conexion.execute(
-      `SELECT c.id_Mascota, m.nombre AS nombre_mascota, s.servicio, c.fecha, c.Descripcion
-       FROM Citas c
-       INNER JOIN Mascota m ON c.id_Mascota = m.id
-       INNER JOIN Servicios s ON c.id_Servicio = s.id
-       ORDER BY c.fecha ASC`
-    );
+    if (mascotasError) throw mascotasError;
 
-    // Estadísticas generales
-    const stats = {
-      mascotas_agregadas: mascotas.length,
-      citas_pendientes: citasPendientes.length
-    };
+    const { data: citasPendientes, error: citasError } = await supabase
+      .from("Citas")
+      .select("id_Mascota, Mascota(nombre), Servicios(servicio), fecha, Descripcion")
+      .order("fecha", { ascending: true });
 
-    // Respuesta
+    if (citasError) throw citasError;
+
     res.json({
-      usuario: {
-        nombre: veterinarioRows[0].nombre,
-        correo: veterinarioRows[0].correoelectronico,
-        mascotas: mascotas.length
+      usuario: { ...veterinario, mascotas: mascotas.length },
+      stats: {
+        mascotas_agregadas: mascotas.length,
+        citas_pendientes: citasPendientes.length,
       },
-      stats,
       mascotas,
-      citas_pendientes: citasPendientes
+      citas_pendientes: citasPendientes,
     });
-
   } catch (error) {
     console.error("Error en /veterinario/dashboard:", error);
     res.status(500).json({ error: "Error interno del servidor" });
@@ -718,184 +645,209 @@ app.get('/veterinario/dashboard/:n_documento', async (req, res) => {
 
 
 
+
+
+js
 /*-------------------------------
-* Rutas de Gestion de mascotas
+* Rutas de Gestión de Mascotas
 -------------------------------*/
 
-
 // Mostrar todas las mascotas registradas
-app.get('/mascotas', async (req, res) => {
+app.get("/mascotas", async (req, res) => {
   try {
-    const [mascotas] = await conexion.query(`
-      SELECT M.id_cliente, M.id, M.nombre, E.Especie AS especie, R.Raza AS raza, M.fecha_nacimiento
-      FROM Mascota M
-      JOIN Especie E ON M.id_especie = E.id
-      JOIN Raza R ON M.id_raza = R.id
-      WHERE M.estado != 'Suspendido'
-    `);
-    if (mascotas.length > 0) {
-      res.json(mascotas);
-    } else {
-      res.json('No hay mascotas registradas');
-    }
+    const { data, error } = await supabase
+      .from("Mascota")
+      .select(`
+        id,
+        nombre,
+        fecha_nacimiento,
+        estado,
+        id_cliente,
+        Especie(especie),
+        Raza(raza)
+      `)
+      .neq("estado", "Suspendido");
+
+    if (error) throw error;
+
+    if (data.length > 0) res.json(data);
+    else res.json("No hay mascotas registradas");
   } catch (err) {
-    console.error('Error al obtener mascotas:', err);
-    res.status(500).json({ error: 'Error al obtener mascotas' });
+    console.error("Error al obtener mascotas:", err.message);
+    res.status(500).json({ error: "Error al obtener mascotas" });
   }
 });
 
-
 // Mostrar una mascota en específico
-app.get('/Mascotas/:id', async (req, res) => {
+app.get("/Mascotas/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const [resultado] = await conexion.execute("SELECT M.id, M.nombre, M.fecha_nacimiento, U.nombre as cliente, E.especie, R.raza FROM Mascota M join Usuarios U on M.id_cliente = U.n_documento JOIN Especie E ON M.id_especie = E.id JOIN Raza R ON M.id_raza = R.id WHERE M.id = ?", [id]);
-    if (resultado.length > 0) {
-      res.json(resultado[0]);
-    } else {
-      res.status(404).json('No hay mascota registrada con ese ID');
-    }
+    const { data, error } = await supabase
+      .from("Mascota")
+      .select(
+        `id, nombre, fecha_nacimiento, Usuarios(nombre), Especie(especie), Raza(raza)`
+      )
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+
+    if (data) res.json(data);
+    else res.status(404).json("No hay mascota registrada con ese ID");
   } catch (err) {
-    console.error('Error al obtener mascota:', err);
-    res.status(500).json({ error: 'Error al obtener mascota' });
+    console.error("Error al obtener mascota:", err.message);
+    res.status(500).json({ error: "Error al obtener mascota" });
   }
 });
 
 // Registrar una mascota
-app.post('/Mascotas/Registro', async (req, res) => {
-  const { nombre, id_especie, id_raza, estado, fecha_nacimiento, id_cliente } = req.body;
+app.post("/Mascotas/Registro", async (req, res) => {
+  const { nombre, id_especie, id_raza, estado, fecha_nacimiento, id_cliente } =
+    req.body;
   try {
-    const sql = "INSERT INTO Mascota (nombre, id_especie, id_raza, estado, fecha_nacimiento, id_cliente) VALUES (?, ?, ?, ?, ?, ?)";
-    const [resultado] = await conexion.execute(sql, [nombre, id_especie, id_raza, estado, fecha_nacimiento, id_cliente]);
-    res.status(201).json({ mensaje: "Mascota ingresada correctamente", resultado });
+    const { data, error } = await supabase.from("Mascota").insert([
+      { nombre, id_especie, id_raza, estado, fecha_nacimiento, id_cliente },
+    ]);
+
+    if (error) throw error;
+
+    res.status(201).json({ mensaje: "Mascota ingresada correctamente", data });
   } catch (err) {
-    console.error('Error al registrar mascota:', err);
-    res.status(500).json({ error: 'Error al registrar mascota' });
+    console.error("Error al registrar mascota:", err.message);
+    res.status(500).json({ error: "Error al registrar mascota" });
   }
 });
 
 // Actualizar mascota
-app.put('/Mascotas/Actualizar/:id', async (req, res) => {
+app.put("/Mascotas/Actualizar/:id", async (req, res) => {
   const { id } = req.params;
   const { nombre, estado } = req.body;
   try {
-    const sql = "UPDATE Mascota SET nombre = ?, estado = ? WHERE id = ?";
-    const [resultado] = await conexion.execute(sql, [nombre, estado, id]);
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: "Mascota actualizada correctamente", resultado });
+    const { data, error } = await supabase
+      .from("Mascota")
+      .update({ nombre, estado })
+      .eq("id", id);
+
+    if (error) throw error;
+
+    if (data.length > 0) {
+      res.json({ mensaje: "Mascota actualizada correctamente", data });
     } else {
       res.status(404).json({ mensaje: "No hay mascota registrada con ese ID" });
     }
   } catch (err) {
-    console.error('Error al actualizar mascota:', err);
-    res.status(500).json({ error: 'Error al actualizar mascota' });
+    console.error("Error al actualizar mascota:", err.message);
+    res.status(500).json({ error: "Error al actualizar mascota" });
   }
 });
 
-// Eliminar mascota
-app.put('/Mascotas/Eliminar/:id', async (req, res) => {
+// Eliminar mascota (suspender)
+app.put("/Mascotas/Eliminar/:id", async (req, res) => {
   const { id } = req.params;
-  console.log('Solicitud para suspender mascota con id:', id);
   try {
-    const [resultado] = await conexion.execute(
-      "UPDATE Mascota SET estado = 'Suspendido' WHERE id = ?",
-      [id]
-    );
-    console.log('Resultado de la actualización:', resultado);
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: "Mascota eliminada correctamente", resultado });
+    const { data, error } = await supabase
+      .from("Mascota")
+      .update({ estado: "Suspendido" })
+      .eq("id", id);
+
+    if (error) throw error;
+
+    if (data.length > 0) {
+      res.json({ mensaje: "Mascota eliminada correctamente", data });
     } else {
       res.status(404).json({ mensaje: "No hay mascota registrada con ese ID" });
     }
   } catch (err) {
-    console.error('Error al eliminar mascota:', err);
-    res.status(500).json({ error: 'Error al eliminar mascota' });
+    console.error("Error al eliminar mascota:", err.message);
+    res.status(500).json({ error: "Error al eliminar mascota" });
   }
 });
 
+/*-------------------------------
+* Citas y Recordatorios
+-------------------------------*/
 
-// Necesario para el historial
-app.get('/Citas/mascota/:id', async (req, res) => {
-  const id = req.params.id;
-  try {
-    const [resultado] = await conexion.execute(
-      `SELECT 
-         C.id,
-         C.id_mascota,
-         C.id_cliente,
-         C.id_servicio,
-         C.id_veterinario,
-         DATE_FORMAT(C.fecha, '%d-%m-%Y %H:%i') AS fecha,
-         C.descripcion,
-         C.estado,
-         S.servicio
-       FROM Citas C
-       JOIN Servicios S ON S.id = C.id_servicio
-       WHERE C.id_mascota = ?`,
-      [id]
-    );
-    if (resultado.length > 0) {
-      res.json(resultado);
-    } else {
-      res.status(404).json({ mensaje: 'Cita no encontrada' });
-    }
-  } catch (error) {
-    console.error('Error al buscar la cita:', error);
-    res.status(500).json({ error: 'Error al buscar la cita' });
-  }
-});
-
-// Recordatorios de la mascota para el historial
-app.get('/recordatorio/mascota/:id', async (req, res) => {
-  const id = req.params.id;
-  try {
-    const [resultado] = await conexion.execute(
-      `SELECT 
-         DATE_FORMAT(fecha, '%d-%m-%Y %H:%i') AS fecha,
-         descripcion,
-         estado
-       FROM Recordatorios 
-       WHERE id_mascota = ?`,
-      [id]
-    );
-    if (resultado.length > 0) {
-      res.json(resultado);
-    } else {
-      res.status(404).json({ mensaje: 'No hay recordatorios para esta mascota' });
-    }
-  } catch (error) {
-    console.error('Error al buscar recordatorio:', error);
-    res.status(500).json({ error: 'Error al buscar recordatorio' });
-  }
-});
-
-
-// Listar todas las especies
-app.get('/Especies/Listado', async (req, res) => {
-  try {
-    const [especies] = await conexion.query("SELECT * FROM Especie");
-    if (especies.length > 0) res.json(especies);
-    else res.json({ mensaje: 'No hay especies registradas' });
-  } catch (err) {
-    console.error('Error al obtener especies:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Obtener una especie por ID
-app.get('/Especies/:id', async (req, res) => {
+// Citas de una mascota
+app.get("/Citas/mascota/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await conexion.query("SELECT * FROM Especie WHERE id = ?", [id]);
-    if (rows.length > 0) res.json(rows[0]);
-    else res.status(404).json({ mensaje: 'Especie no encontrada' });
+    const { data, error } = await supabase
+      .from("Citas")
+      .select(
+        `id, id_mascota, id_cliente, id_servicio, id_veterinario, fecha, descripcion, estado, Servicios(servicio)`
+      )
+      .eq("id_mascota", id);
+
+    if (error) throw error;
+
+    if (data.length > 0) res.json(data);
+    else res.status(404).json({ mensaje: "Cita no encontrada" });
   } catch (err) {
-    console.error('Error al obtener especie:', err);
+    console.error("Error al buscar la cita:", err.message);
+    res.status(500).json({ error: "Error al buscar la cita" });
+  }
+});
+
+// Recordatorios de una mascota
+app.get("/recordatorio/mascota/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from("Recordatorios")
+      .select("fecha, descripcion, estado")
+      .eq("id_mascota", id);
+
+    if (error) throw error;
+
+    if (data.length > 0) res.json(data);
+    else res
+      .status(404)
+      .json({ mensaje: "No hay recordatorios para esta mascota" });
+  } catch (err) {
+    console.error("Error al buscar recordatorio:", err.message);
+    res.status(500).json({ error: "Error al buscar recordatorio" });
+  }
+});
+
+/*-------------------------------
+* Especies
+-------------------------------*/
+
+// Listar especies
+app.get("/Especies/Listado", async (req, res) => {
+  try {
+    const { data, error } = await supabase.from("Especie").select("*");
+    if (error) throw error;
+
+    if (data.length > 0) res.json(data);
+    else res.json({ mensaje: "No hay especies registradas" });
+  } catch (err) {
+    console.error("Error al obtener especies:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Crear especie
+// Obtener especie por ID
+app.get("/Especies/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from("Especie")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+
+    if (data) res.json(data);
+    else res.status(404).json({ mensaje: "Especie no encontrada" });
+  } catch (err) {
+    console.error("Error al obtener especie:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Crear especie con imagen
 app.post("/Especies/Crear", upload.single("imagen"), async (req, res) => {
   try {
     let imagenUrl = null;
@@ -903,14 +855,14 @@ app.post("/Especies/Crear", upload.single("imagen"), async (req, res) => {
     if (req.file) {
       const fileName = `especies/${Date.now()}_${req.file.originalname}`;
 
-      const { error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
           upsert: true,
         });
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
       const { data: publicUrl } = supabase.storage
         .from("img-animalbeats")
@@ -919,16 +871,14 @@ app.post("/Especies/Crear", upload.single("imagen"), async (req, res) => {
       imagenUrl = publicUrl.publicUrl;
     }
 
-    const [resultado] = await conexion.execute(
-      "INSERT INTO Especie (especie, imagen) VALUES (?, ?)",
-      [req.body.Especie, imagenUrl]
-    );
+    const { data, error } = await supabase
+      .from("Especie")
+      .insert([{ especie: req.body.Especie, imagen: imagenUrl }])
+      .select();
 
-    res.json({
-      mensaje: "Especie creada",
-      id: resultado.insertId,
-      imagen: imagenUrl,
-    });
+    if (error) throw error;
+
+    res.json({ mensaje: "Especie creada", data });
   } catch (err) {
     console.error("Error creando especie:", err.message);
     res.status(500).json({ error: err.message });
@@ -941,102 +891,104 @@ app.put("/Especies/Actualizar/:id", upload.single("imagen"), async (req, res) =>
   const { Especie } = req.body;
 
   try {
-    let imagenUrl = null;
+    let updateFields = { especie: Especie };
 
     if (req.file) {
       const fileName = `especies/${Date.now()}_${req.file.originalname}`;
 
-      const { error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
           upsert: true,
         });
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
       const { data: publicUrl } = supabase.storage
         .from("img-animalbeats")
         .getPublicUrl(fileName);
 
-      imagenUrl = publicUrl.publicUrl;
+      updateFields.imagen = publicUrl.publicUrl;
     }
 
-    let sql, params;
-    if (imagenUrl) {
-      sql = "UPDATE Especie SET especie = ?, imagen = ? WHERE id = ?";
-      params = [Especie, imagenUrl, id];
-    } else {
-      sql = "UPDATE Especie SET especie = ? WHERE id = ?";
-      params = [Especie, id];
-    }
+    const { data, error } = await supabase
+      .from("Especie")
+      .update(updateFields)
+      .eq("id", id)
+      .select();
 
-    const [resultado] = await conexion.execute(sql, params);
+    if (error) throw error;
 
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: "Especie actualizada correctamente" });
-    } else {
-      res.status(404).json({ mensaje: "Especie no encontrada" });
-    }
+    if (data.length > 0) res.json({ mensaje: "Especie actualizada", data });
+    else res.status(404).json({ mensaje: "Especie no encontrada" });
   } catch (err) {
     console.error("Error actualizando especie:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-
-
 // Eliminar especie
-app.delete('/Especies/Eliminar/:id', async (req, res) => {
+app.delete("/Especies/Eliminar/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const [resultado] = await conexion.execute("DELETE FROM Especie WHERE id = ?", [id]);
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: "Especie eliminada correctamente" });
-    } else {
-      res.status(404).json({ mensaje: "No hay especie registrada con ese ID" });
-    }
+    const { data, error } = await supabase.from("Especie").delete().eq("id", id);
+
+    if (error) throw error;
+
+    if (data.length > 0) res.json({ mensaje: "Especie eliminada", data });
+    else res.status(404).json({ mensaje: "No hay especie con ese ID" });
   } catch (err) {
-    console.error('Error al eliminar especie:', err);
+    console.error("Error al eliminar especie:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-
-// ----------------- RAZAS -----------------
-
+/*-------------------------------
+* Razas
+-------------------------------*/
 
 // Listar razas de una especie
-app.get('/Razas/Listado/:id_especie', async (req, res) => {
+app.get("/Razas/Listado/:id_especie", async (req, res) => {
   const { id_especie } = req.params;
   try {
-    const [resultado] = await conexion.execute(
-      "SELECT * FROM Raza WHERE id_especie = ?", [id_especie]
-    );
-    if (resultado.length > 0) res.json(resultado);
-    else res.json({ mensaje: 'No hay razas registradas' });
+    const { data, error } = await supabase
+      .from("Raza")
+      .select("*")
+      .eq("id_especie", id_especie);
+
+    if (error) throw error;
+
+    if (data.length > 0) res.json(data);
+    else res.json({ mensaje: "No hay razas registradas" });
   } catch (err) {
-    console.error('Error al obtener razas:', err);
+    console.error("Error al obtener razas:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 // Obtener una raza por ID
-app.get('/Razas/:id', async (req, res) => {
+app.get("/Razas/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await conexion.query("SELECT * FROM Raza WHERE id = ?", [id]);
-    if (rows.length > 0) res.json(rows[0]);
-    else res.status(404).json({ mensaje: 'Raza no encontrada' });
+    const { data, error } = await supabase
+      .from("Raza")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+
+    if (data) res.json(data);
+    else res.status(404).json({ mensaje: "Raza no encontrada" });
   } catch (err) {
-    console.error('Error al obtener raza:', err);
+    console.error("Error al obtener raza:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 // Crear raza
-// Crear raza
-app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) => {
+app.post("/Razas/Crear/:id_especie", upload.single("imagen"), async (req, res) => {
   const { id_especie } = req.params;
   const { raza, descripcion } = req.body;
 
@@ -1046,14 +998,14 @@ app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) =
     if (req.file) {
       const fileName = `razas/${Date.now()}_${req.file.originalname}`;
 
-      const { error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
           upsert: true,
         });
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
       const { data: publicUrl } = supabase.storage
         .from("img-animalbeats")
@@ -1062,23 +1014,14 @@ app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) =
       imagenUrl = publicUrl.publicUrl;
     }
 
-    const sql =
-      "INSERT INTO Raza (raza, descripcion, imagen, id_especie) VALUES (?, ?, ?, ?)";
-    const [resultado] = await conexion.execute(sql, [
-      raza,
-      descripcion,
-      imagenUrl,
-      id_especie,
-    ]);
+    const { data, error } = await supabase
+      .from("Raza")
+      .insert([{ raza, descripcion, imagen: imagenUrl, id_especie }])
+      .select();
 
-    res.status(201).json({
-      mensaje: "Raza ingresada correctamente",
-      id: resultado.insertId,
-      raza,
-      descripcion,
-      imagen: imagenUrl,
-      id_especie,
-    });
+    if (error) throw error;
+
+    res.status(201).json({ mensaje: "Raza creada", data });
   } catch (err) {
     console.error("Error registrando raza:", err.message);
     res.status(500).json({ error: err.message });
@@ -1086,89 +1029,77 @@ app.post('/Razas/Crear/:id_especie', upload.single('imagen'), async (req, res) =
 });
 
 // Actualizar raza
-app.put('/Razas/Actualizar/:id', upload.single('imagen'), async (req, res) => {
+app.put("/Razas/Actualizar/:id", upload.single("imagen"), async (req, res) => {
   const { id } = req.params;
   const { raza, descripcion } = req.body;
 
   try {
-    let imagenUrl = null;
+    let updateFields = { raza, descripcion };
 
     if (req.file) {
       const fileName = `razas/${Date.now()}_${req.file.originalname}`;
 
-      const { error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("img-animalbeats")
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
           upsert: true,
         });
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
       const { data: publicUrl } = supabase.storage
         .from("img-animalbeats")
         .getPublicUrl(fileName);
 
-      imagenUrl = publicUrl.publicUrl;
+      updateFields.imagen = publicUrl.publicUrl;
     }
 
-    let sql, params;
-    if (imagenUrl) {
-      sql = "UPDATE Raza SET raza = ?, descripcion = ?, imagen = ? WHERE id = ?";
-      params = [raza, descripcion, imagenUrl, id];
-    } else {
-      sql = "UPDATE Raza SET raza = ?, descripcion = ? WHERE id = ?";
-      params = [raza, descripcion, id];
-    }
+    const { data, error } = await supabase
+      .from("Raza")
+      .update(updateFields)
+      .eq("id", id)
+      .select();
 
-    const [resultado] = await conexion.execute(sql, params);
+    if (error) throw error;
 
-    if (resultado.affectedRows > 0) {
-      res.json({
-        mensaje: "Raza actualizada correctamente",
-        id,
-        raza,
-        descripcion,
-        imagen: imagenUrl,
-      });
-    } else {
-      res.status(404).json({ mensaje: "No hay raza registrada con ese ID" });
-    }
+    if (data.length > 0) res.json({ mensaje: "Raza actualizada", data });
+    else res.status(404).json({ mensaje: "Raza no encontrada" });
   } catch (err) {
     console.error("Error al actualizar raza:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-
 // Eliminar raza
-app.delete('/Razas/Eliminar/:id', async (req, res) => {
+app.delete("/Razas/Eliminar/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const [resultado] = await conexion.execute("DELETE FROM Raza WHERE id = ?", [id]);
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: "Raza eliminada correctamente" });
-    } else {
-      res.status(404).json({ mensaje: "No hay raza registrada con ese ID" });
-    }
+    const { data, error } = await supabase.from("Raza").delete().eq("id", id);
+
+    if (error) throw error;
+
+    if (data.length > 0) res.json({ mensaje: "Raza eliminada", data });
+    else res.status(404).json({ mensaje: "No hay raza registrada con ese ID" });
   } catch (err) {
-    console.error('Error al eliminar raza:', err);
+    console.error("Error al eliminar raza:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 
-
 // =======================
-// Rutas de Enfermedades
+// Rutas de Enfermedades (con Supabase pero mismas rutas)
 // =======================
 
 // Obtener todas las enfermedades
 app.get('/Enfermedades/Listado', async (req, res) => {
   try {
-    const [resultado] = await conexion.execute("SELECT * FROM Enfermedad");
-    if (resultado.length > 0) {
-      return res.json(resultado);
+    const { data, error } = await supabase.from("Enfermedad").select("*");
+    if (error) throw error;
+
+    if (data.length > 0) {
+      return res.json(data);
     }
     return res.json({ mensaje: 'No hay enfermedades registradas' });
   } catch (error) {
@@ -1177,16 +1108,17 @@ app.get('/Enfermedades/Listado', async (req, res) => {
   }
 });
 
-
 // Registrar nueva enfermedad
 app.post('/Enfermedades/Registrar', async (req, res) => {
   const { nombre, descripcion } = req.body;
   try {
-    const [resultado] = await conexion.execute(
-      "INSERT INTO Enfermedad (nombre, descripcion) VALUES (?, ?)",
-      [nombre, descripcion]
-    );
-    res.status(201).json({ mensaje: 'Enfermedad registrada correctamente', resultado });
+    const { data, error } = await supabase
+      .from("Enfermedad")
+      .insert([{ nombre, descripcion }]);
+
+    if (error) throw error;
+
+    res.status(201).json({ mensaje: 'Enfermedad registrada correctamente', resultado: data });
   } catch (error) {
     console.error('Error al registrar la enfermedad:', error);
     res.status(500).json({ error: 'Error al registrar la enfermedad' });
@@ -1195,15 +1127,18 @@ app.post('/Enfermedades/Registrar', async (req, res) => {
 
 // Actualizar enfermedad
 app.put('/Enfermedades/Actualizar/:nombre', async (req, res) => {
-  const nombre = req.params.nombre;
+  const { nombre } = req.params;
   const { descripcion } = req.body;
   try {
-    const [resultado] = await conexion.execute(
-      "UPDATE Enfermedad SET descripcion = ? WHERE nombre = ?",
-      [descripcion, nombre]
-    );
-    if (resultado.affectedRows > 0) {
-      return res.json({ mensaje: 'Enfermedad actualizada correctamente', resultado });
+    const { data, error } = await supabase
+      .from("Enfermedad")
+      .update({ descripcion })
+      .eq("nombre", nombre);
+
+    if (error) throw error;
+
+    if (data.length > 0) {
+      return res.json({ mensaje: 'Enfermedad actualizada correctamente', resultado: data });
     } else {
       return res.status(404).json({ mensaje: 'No se encontró la enfermedad' });
     }
@@ -1215,14 +1150,17 @@ app.put('/Enfermedades/Actualizar/:nombre', async (req, res) => {
 
 // Eliminar enfermedad
 app.delete('/Enfermedades/Eliminar/:nombre', async (req, res) => {
-  const nombre = req.params.nombre;
+  const { nombre } = req.params;
   try {
-    const [resultado] = await conexion.execute(
-      "DELETE FROM Enfermedad WHERE nombre = ?",
-      [nombre]
-    );
-    if (resultado.affectedRows > 0) {
-      return res.json({ mensaje: 'Enfermedad eliminada correctamente', resultado });
+    const { data, error } = await supabase
+      .from("Enfermedad")
+      .delete()
+      .eq("nombre", nombre);
+
+    if (error) throw error;
+
+    if (data.length > 0) {
+      return res.json({ mensaje: 'Enfermedad eliminada correctamente', resultado: data });
     } else {
       return res.status(404).json({ mensaje: 'No se encontró la enfermedad' });
     }
@@ -1232,38 +1170,33 @@ app.delete('/Enfermedades/Eliminar/:nombre', async (req, res) => {
   }
 });
 
+
 // =======================
-// Rutas de Citas
+// Rutas de Citas (con Supabase pero mismas rutas)
 // =======================
 
 // Obtener todas las citas
-// Obtener todas las citas con info del cliente, mascota y veterinario
 app.get('/Citas/Listado', async (req, res) => {
   try {
-    const [resultado] = await conexion.execute(`
-      SELECT 
-        C.id,
-        C.id_Mascota,
-        M.nombre AS nombre_mascota,
-        C.id_cliente,
-        UC.nombre AS nombre_cliente,
-        C.id_Servicio,
-        S.servicio AS nombre_servicio,
-        C.id_veterinario,
-        V.nombre_completo AS nombre_veterinario,
-        DATE_FORMAT(C.fecha, '%d-%m-%Y %H:%i') AS fecha,
-        C.Descripcion,
-        C.estado
-      FROM Citas C
-      INNER JOIN Mascota M ON C.id_Mascota = M.id
-      INNER JOIN Usuarios UC ON C.id_cliente = UC.n_documento
-      INNER JOIN Servicios S ON C.id_Servicio = S.id
-      INNER JOIN Veterinarios V ON C.id_veterinario = V.id
-      ORDER BY C.fecha DESC
-    `);
+    const { data, error } = await supabase
+      .from("Citas")
+      .select(`
+        id,
+        id_mascota,
+        fecha,
+        descripcion,
+        estado,
+        Mascota ( nombre ),
+        Usuarios!Citas_id_cliente_fkey ( nombre ),
+        Servicios ( servicio ),
+        Veterinarios ( nombre_completo )
+      `)
+      .order("fecha", { ascending: false });
 
-    if (resultado.length > 0) {
-      res.json(resultado);
+    if (error) throw error;
+
+    if (data.length > 0) {
+      res.json(data);
     } else {
       res.json({ mensaje: 'No hay citas registradas' });
     }
@@ -1273,17 +1206,17 @@ app.get('/Citas/Listado', async (req, res) => {
   }
 });
 
-
 // Registrar nueva cita
 app.post('/Citas/Registrar', async (req, res) => {
-  const { id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, estado } = req.body;
+  const { id_mascota, id_cliente, id_servicio, id_veterinario, fecha, descripcion, estado } = req.body;
   try {
-    const [resultado] = await conexion.execute(
-      `INSERT INTO Citas (id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id_Mascota, id_cliente, id_Servicio, id_veterinario, fecha, Descripcion, estado]
-    );
-    res.status(201).json({ mensaje: 'Cita registrada correctamente', resultado });
+    const { data, error } = await supabase
+      .from("Citas")
+      .insert([{ id_mascota, id_cliente, id_servicio, id_veterinario, fecha, descripcion, estado }]);
+
+    if (error) throw error;
+
+    res.status(201).json({ mensaje: 'Cita registrada correctamente', resultado: data });
   } catch (error) {
     console.error('Error al registrar la cita:', error);
     res.status(500).json({ error: 'Error al registrar la cita' });
@@ -1291,60 +1224,53 @@ app.post('/Citas/Registrar', async (req, res) => {
 });
 
 // Obtener una cita por ID
-// Obtener una cita por ID con info detallada
-  app.get('/Citas/:id', async (req, res) => {
-    const id = req.params.id;
-    try {
-      const [resultado] = await conexion.execute(`
-        SELECT 
-        C.id,
-        C.id_Mascota,
-        M.nombre AS nombre_mascota,
-        C.id_cliente,
-        UC.nombre AS nombre_cliente,
-        C.id_Servicio,
-        S.servicio AS nombre_servicio,
-        C.id_veterinario,
-        UV.nombre_completo AS nombre_veterinario,
-        C.fecha,
-        C.Descripcion,
-        C.estado
-      FROM Citas C
-      INNER JOIN Mascota M ON C.id_Mascota = M.id
-      INNER JOIN Usuarios UC ON C.id_cliente = UC.n_documento
-      INNER JOIN Servicios S ON C.id_Servicio = S.id
-      INNER JOIN Veterinarios UV ON C.id_veterinario = UV.id
-      WHERE C.id = ?
+app.get('/Citas/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from("Citas")
+      .select(`
+        id,
+        id_mascota,
+        fecha,
+        descripcion,
+        estado,
+        Mascota ( nombre ),
+        Usuarios!Citas_id_cliente_fkey ( nombre ),
+        Servicios ( servicio ),
+        Veterinarios ( nombre_completo )
+      `)
+      .eq("id", id)
+      .single();
 
-      `, [id]);
+    if (error) throw error;
 
-      if (resultado.length > 0) {
-        res.json(resultado[0]);
-      } else {
-        res.status(404).json({ mensaje: 'Cita no encontrada' });
-      }
-    } catch (error) {
-      console.error('Error al buscar la cita:', error);
-      res.status(500).json({ error: 'Error al buscar la cita' });
+    if (data) {
+      res.json(data);
+    } else {
+      res.status(404).json({ mensaje: 'Cita no encontrada' });
     }
-  });
-
+  } catch (error) {
+    console.error('Error al buscar la cita:', error);
+    res.status(500).json({ error: 'Error al buscar la cita' });
+  }
+});
 
 // Actualizar una cita por ID
 app.put('/Citas/Actualizar/:id', async (req, res) => {
-  const id = req.params.id;
-  const { Descripcion, estado } = req.body;
+  const { id } = req.params;
+  const { descripcion, estado } = req.body;
 
   try {
-    const [resultado] = await conexion.execute(
-      `UPDATE Citas 
-       SET Descripcion = ?, estado = ?
-       WHERE id = ?`,
-      [Descripcion, estado, id]
-    );
+    const { data, error } = await supabase
+      .from("Citas")
+      .update({ descripcion, estado })
+      .eq("id", id);
 
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: 'Cita actualizada correctamente', resultado });
+    if (error) throw error;
+
+    if (data.length > 0) {
+      res.json({ mensaje: 'Cita actualizada correctamente', resultado: data });
     } else {
       res.status(404).json({ mensaje: 'Cita no encontrada para actualizar' });
     }
@@ -1354,18 +1280,19 @@ app.put('/Citas/Actualizar/:id', async (req, res) => {
   }
 });
 
-
-// Cambiar estado de una cita a "Cancelado".
+// Cancelar cita
 app.put('/Citas/Cancelar/:id', async (req, res) => {
-  const id = req.params.id;
+  const { id } = req.params;
   try {
-    const [resultado] = await conexion.execute(
-      'UPDATE Citas SET estado = ? WHERE id = ?',
-      ['Cancelado', id]
-    );
+    const { data, error } = await supabase
+      .from("Citas")
+      .update({ estado: "Cancelado" })
+      .eq("id", id);
 
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: 'Cita cancelada correctamente', resultado });
+    if (error) throw error;
+
+    if (data.length > 0) {
+      res.json({ mensaje: 'Cita cancelada correctamente', resultado: data });
     } else {
       res.status(404).json({ mensaje: 'Cita no encontrada para cancelar' });
     }
@@ -1375,17 +1302,19 @@ app.put('/Citas/Cancelar/:id', async (req, res) => {
   }
 });
 
-// Cambiar estado de una cita a "Confirmado"
+// Confirmar cita
 app.put('/Citas/Confirmar/:id', async (req, res) => {
-  const id = req.params.id;
+  const { id } = req.params;
   try {
-    const [resultado] = await conexion.execute(
-      'UPDATE Citas SET estado = ? WHERE id = ?',
-      ['Confirmado', id]
-    );
+    const { data, error } = await supabase
+      .from("Citas")
+      .update({ estado: "Confirmado" })
+      .eq("id", id);
 
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: 'Cita confirmada correctamente', resultado });
+    if (error) throw error;
+
+    if (data.length > 0) {
+      res.json({ mensaje: 'Cita confirmada correctamente', resultado: data });
     } else {
       res.status(404).json({ mensaje: 'Cita no encontrada para confirmar' });
     }
@@ -1395,18 +1324,19 @@ app.put('/Citas/Confirmar/:id', async (req, res) => {
   }
 });
 
-
-// Cambiar estado de una cita a "Pendiente" 
+// Marcar cita como pendiente
 app.put('/Citas/Pendiente/:id', async (req, res) => {
-  const id = req.params.id;
+  const { id } = req.params;
   try {
-    const [resultado] = await conexion.execute(
-      'UPDATE Citas SET estado = ? WHERE id = ?',
-      ['Pendiente', id]
-    );
+    const { data, error } = await supabase
+      .from("Citas")
+      .update({ estado: "Pendiente" })
+      .eq("id", id);
 
-    if (resultado.affectedRows > 0) {
-      res.json({ mensaje: 'Cita actualizada a pendiente correctamente', resultado });
+    if (error) throw error;
+
+    if (data.length > 0) {
+      res.json({ mensaje: 'Cita actualizada a pendiente correctamente', resultado: data });
     } else {
       res.status(404).json({ mensaje: 'Cita no encontrada para actualizar a pendiente' });
     }
@@ -1416,20 +1346,24 @@ app.put('/Citas/Pendiente/:id', async (req, res) => {
   }
 });
 
+
 /* ========================
 *  Rutas de Servicios
 * ======================== */
 app.get('/servicios/Listado', async (req, res) => {
   try {
-    const [resultado] = await conexion.execute('SELECT * FROM Servicios');
-    if (resultado.length > 0) {
-      res.json(resultado);
+    const { data, error } = await supabase.from("Servicios").select("*");
+
+    if (error) throw error;
+
+    if (data.length > 0) {
+      res.json(data);
     } else {
-      res.json({ mensaje: 'No hay citas registradas' });
+      res.json({ mensaje: 'No hay servicios registrados' });
     }
   } catch (error) {
-    console.error('Error al obtener citas:', error);
-    res.status(500).json({ error: 'Error al obtener citas' });
+    console.error('Error al obtener servicios:', error);
+    res.status(500).json({ error: 'Error al obtener servicios' });
   }
 });
 
@@ -1439,27 +1373,40 @@ app.get('/servicios/Listado', async (req, res) => {
 
 // Obtener todas las alarmas de recordatorios
 app.get('/recordatorios', async (req, res) => {
-  const connection = req.app.locals.connection;
   try {
-    const [alertas] = await connection.execute(`
-      SELECT Recordatorios.id, Recordatorios.id_Mascota, Mascota.Nombre AS nombre_mascota,
-             Recordatorios.id_cliente, Recordatorios.Fecha, Recordatorios.descripcion
-      FROM Recordatorios
-      JOIN Mascota ON Recordatorios.id_Mascota = Mascota.id
-    `);
-    res.json(alertas);
+    const { data, error } = await supabase
+      .from("Recordatorios")
+      .select(`
+        id,
+        id_Mascota,
+        Mascota ( nombre ),
+        id_cliente,
+        Fecha,
+        descripcion
+      `);
+
+    if (error) throw error;
+
+    res.json(data);
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener las alertas' });
+    console.error('Error al obtener recordatorios:', error);
+    res.status(500).json({ error: 'Error al obtener los recordatorios' });
   }
 });
 
-//conseguir mascotas para mostrar dependiendo el id del dueño al crear un recordatorio
+// Conseguir mascotas para mostrar dependiendo el id del dueño
 app.get('/Mascota/recordatorio/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const [resultado] = await conexion.execute("SELECT M.id, M.nombre FROM Mascota M WHERE M.id_cliente = ?", [id]);
-    if (resultado.length > 0) {
-      res.json(resultado[0]);
+    const { data, error } = await supabase
+      .from("Mascota")
+      .select("id, nombre")
+      .eq("id_cliente", id);
+
+    if (error) throw error;
+
+    if (data.length > 0) {
+      res.json(data[0]);
     } else {
       res.status(404).json('No hay mascota registrada para ese ID');
     }
@@ -1471,57 +1418,67 @@ app.get('/Mascota/recordatorio/:id', async (req, res) => {
 
 // Modificar recordatorio existente
 app.put('/recordatorios/modificar/:id', async (req, res) => {
-  const connection = req.app.locals.connection;
   const { id } = req.params;
   const { cliente, mascota, fecha, descripcion } = req.body;
 
   try {
-    await connection.execute(`
-      UPDATE Recordatorios
-      SET id_cliente = ?, id_Mascota = ?, Fecha = ?, descripcion = ?
-      WHERE id = ?
-    `, [cliente, mascota, fecha, descripcion, id]);
+    const { error } = await supabase
+      .from("Recordatorios")
+      .update({
+        id_cliente: cliente,
+        id_Mascota: mascota,
+        Fecha: fecha,
+        descripcion: descripcion
+      })
+      .eq("id", id);
+
+    if (error) throw error;
 
     res.json({ message: 'Recordatorio actualizado correctamente' });
   } catch (error) {
+    console.error('Error al modificar el recordatorio:', error);
     res.status(500).json({ error: 'Error al modificar el recordatorio' });
   }
 });
 
 // Guardar un nuevo recordatorio
 app.post('/recordatorios/guardar', async (req, res) => {
-  const connection = req.app.locals.connection;
   const { cliente, mascota, fecha, descripcion } = req.body;
 
   try {
     if (!fecha || typeof fecha !== 'string') {
       throw new Error('Fecha inválida');
     }
-    const fechaParseada = fecha;
 
-    const [usuario] = await connection.execute(
-      'SELECT n_documento FROM Usuarios WHERE n_documento = ?',
-      [cliente]
-    );
+    // Validar cliente
+    const { data: usuario, error: errorUsuario } = await supabase
+      .from("Usuarios")
+      .select("n_documento")
+      .eq("n_documento", cliente);
+
+    if (errorUsuario) throw errorUsuario;
     if (usuario.length === 0) {
       return res.status(400).json({ error: 'Cliente no existe' });
     }
 
-    const [mascotaBD] = await connection.execute(
-      'SELECT id FROM Mascota WHERE id = ? AND id_cliente = ?',
-      [mascota, cliente]
-    );
+    // Validar mascota
+    const { data: mascotaBD, error: errorMascota } = await supabase
+      .from("Mascota")
+      .select("id")
+      .eq("id", mascota)
+      .eq("id_cliente", cliente);
+
+    if (errorMascota) throw errorMascota;
     if (mascotaBD.length === 0) {
       return res.status(400).json({ error: 'Mascota no coincide con cliente' });
     }
 
-    await connection.execute(
-      `
-      INSERT INTO Recordatorios (id_cliente, id_Mascota, Fecha, descripcion)
-      VALUES (?, ?, ?, ?)
-      `,
-      [cliente, mascota, fechaParseada, descripcion]
-    );
+    // Insertar recordatorio
+    const { error } = await supabase
+      .from("Recordatorios")
+      .insert([{ id_cliente: cliente, id_Mascota: mascota, Fecha: fecha, descripcion }]);
+
+    if (error) throw error;
 
     res.status(201).json({ message: 'Recordatorio guardado correctamente' });
   } catch (error) {
@@ -1532,24 +1489,31 @@ app.post('/recordatorios/guardar', async (req, res) => {
 
 // Eliminar recordatorio
 app.delete('/recordatorios/eliminar/:id', async (req, res) => {
-  const connection = req.app.locals.connection;
   const { id } = req.params;
 
   try {
-    await connection.execute("DELETE FROM Recordatorios WHERE id = ?", [id]);
+    const { error } = await supabase.from("Recordatorios").delete().eq("id", id);
+
+    if (error) throw error;
+
     res.json({ message: 'Recordatorio eliminado correctamente' });
   } catch (error) {
+    console.error('Error al eliminar el recordatorio:', error);
     res.status(500).json({ error: 'Error al eliminar el recordatorio' });
   }
 });
 
-// Rutas de la API
-const PORT = process.env.DB_PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor escuchando en el puerto: ${PORT}`);
+/* ========================
+*  Rutas de la API
+* ======================== */
+// Servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en puerto ${PORT}`);
 });
 
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
