@@ -1347,7 +1347,7 @@ app.put('/Citas/Pendiente/:id', async (req, res) => {
 * ======================== */
 app.get('/servicios/Listado', async (req, res) => {
   try {
-    const { data, error } = await supabase.from("Servicios").select("*");
+    const { data, error } = await supabase.from("servicios").select("*");
 
     if (error) throw error;
 
@@ -1370,7 +1370,7 @@ app.get('/servicios/Listado', async (req, res) => {
 app.get('/recordatorios', async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from("Recordatorios")
+      .from("recordatorios")
       .select(`
         id,
         id_Mascota,
@@ -1418,7 +1418,7 @@ app.put('/recordatorios/modificar/:id', async (req, res) => {
 
   try {
     const { error } = await supabase
-      .from("Recordatorios")
+      .from("recordatorios")
       .update({
         id_cliente: cliente,
         id_Mascota: mascota,
@@ -1458,7 +1458,7 @@ app.post('/recordatorios/guardar', async (req, res) => {
 
     // Validar mascota
     const { data: mascotaBD, error: errorMascota } = await supabase
-      .from("Mascota")
+      .from("mascota")
       .select("id")
       .eq("id", mascota)
       .eq("id_cliente", cliente);
