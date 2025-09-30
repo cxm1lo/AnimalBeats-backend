@@ -77,7 +77,7 @@ app.post('/registro', async (req, res) => {
       id_rol = 2; rolTexto = 'cliente';
     }
 
-    const { error } = await supabase.from("Usuarios").insert([
+    const { error } = await supabase.from("usuarios").insert([
       {
         n_documento,
         correoelectronico,
@@ -101,7 +101,7 @@ app.post('/registro', async (req, res) => {
 // Obtener tipos de documento
 app.get('/tiposDocumento', async (req, res) => {
   try {
-    const { data, error } = await supabase.from("Documento").select("id, tipo");
+    const { data, error } = await supabase.from("documento").select("id, tipo");
     if (error) throw error;
     res.status(200).json(data);
   } catch (err) {
@@ -116,7 +116,7 @@ app.post('/login', async (req, res) => {
 
   try {
     const { data: usuarios, error } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .select("*")
       .eq("correoelectronico", correoelectronico);
 
@@ -170,7 +170,7 @@ app.post('/login', async (req, res) => {
 app.get('/usuario/Listado', async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .select("n_documento, nombre, correoelectronico, estado, id_rol, Documento(tipo)")
       .neq("estado", "Suspendido");
 
@@ -188,7 +188,7 @@ app.get('/usuario/:n_documento', async (req, res) => {
   const { n_documento } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .select("n_documento, nombre, correoelectronico, Documento(tipo)")
       .eq("n_documento", n_documento)
       .maybeSingle();
@@ -212,7 +212,7 @@ app.post('/usuario/Crear', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(contrasena, 10);
 
-    const { error } = await supabase.from("Usuarios").insert([
+    const { error } = await supabase.from("usuarios").insert([
       {
         n_documento,
         nombre,
@@ -240,7 +240,7 @@ app.put('/usuario/Actualizar/:n_documento', async (req, res) => {
 
   try {
     const { error } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .update({
         nombre,
         correoelectronico,
@@ -264,7 +264,7 @@ app.put('/usuario/Suspender/:n_documento', async (req, res) => {
   const { n_documento } = req.params;
   try {
     const { error } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .update({ estado: "Suspendido" })
       .eq("n_documento", n_documento);
 
@@ -281,7 +281,7 @@ app.put('/usuario/Reactivar/:n_documento', async (req, res) => {
   const { n_documento } = req.params;
   try {
     const { error } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .update({ estado: "Activo" })
       .eq("n_documento", n_documento);
 
@@ -298,7 +298,7 @@ app.put('/usuario/Pendiente/:n_documento', async (req, res) => {
   const { n_documento } = req.params;
   try {
     const { error } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .update({ estado: "Pendiente" })
       .eq("n_documento", n_documento);
 
@@ -317,7 +317,7 @@ app.put('/usuario/Pendiente/:n_documento', async (req, res) => {
 // Listar Roles
 app.get('/roles/Listado', async (req, res) => {
   try {
-    const { data, error } = await supabase.from("Rol").select("id, rol");
+    const { data, error } = await supabase.from("rol").select("id, rol");
     if (error) throw error;
     res.json({ roles: data });
   } catch (err) {
@@ -333,7 +333,7 @@ app.post('/roles/Crear', async (req, res) => {
     return res.status(400).json({ error: 'El rol es obligatorio' });
   }
   try {
-    const { data, error } = await supabase.from("Rol").insert([{ rol: rol.trim() }]).select("id").single();
+    const { data, error } = await supabase.from("rol").insert([{ rol: rol.trim() }]).select("id").single();
     if (error) throw error;
     res.json({ message: 'Rol creado correctamente', id: data.id });
   } catch (err) {
@@ -346,7 +346,7 @@ app.post('/roles/Crear', async (req, res) => {
 app.delete('/roles/Eliminar/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const { error } = await supabase.from("Rol").delete().eq("id", id);
+    const { error } = await supabase.from("rol").delete().eq("id", id);
     if (error) throw error;
     res.json({ message: 'Rol eliminado correctamente' });
   } catch (err) {
@@ -413,7 +413,7 @@ app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
 
     // Insertar en la base de datos con Supabase
     const { data, error } = await supabase
-      .from("Veterinarios")
+      .from("veterinarios")
       .insert([
         {
           nombre_completo,
@@ -449,7 +449,7 @@ app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
 app.get("/veterinarios", async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from("Veterinarios")
+      .from("veterinarios")
       .select("*")
       .eq("activo", true)
       .order("creado_en", { ascending: false });
@@ -470,7 +470,7 @@ app.get("/veterinarios/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { data, error } = await supabase
-      .from("Veterinarios")
+      .from("veterinarios")
       .select("*")
       .eq("id", id)
       .single();
@@ -497,7 +497,7 @@ app.delete("/veterinarios/:id", async (req, res) => {
     const { id } = req.params;
 
     const { data, error } = await supabase
-      .from("Veterinarios")
+      .from("veterinarios")
       .update({ activo: false })
       .eq("id", id);
 
@@ -523,7 +523,7 @@ app.delete("/veterinarios/:id", async (req, res) => {
 app.get("/admin/dashboard", async (req, res) => {
   try {
     const { data: adminRows, error: adminError } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .select("nombre, correoelectronico")
       .eq("id_rol", 1)
       .limit(1);
@@ -534,7 +534,7 @@ app.get("/admin/dashboard", async (req, res) => {
     }
 
     const { count, error: countError } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .select("*", { count: "exact", head: true })
       .in("id_rol", [2, 3]);
 
@@ -561,7 +561,7 @@ app.get("/cliente/dashboard/:n_documento", async (req, res) => {
     const { n_documento } = req.params;
 
     const { data: cliente, error: clienteError } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .select("nombre, correoelectronico")
       .eq("n_documento", n_documento)
       .eq("id_rol", 2)
@@ -572,7 +572,7 @@ app.get("/cliente/dashboard/:n_documento", async (req, res) => {
     }
 
     const { data: citasPendientes, error: citasError } = await supabase
-      .from("Citas")
+      .from("citas")
       .select("id_Mascota, Mascota(nombre), Servicios(servicio), fecha, Descripcion")
       .eq("id_cliente", n_documento)
       .gte("fecha", new Date().toISOString());
@@ -580,7 +580,7 @@ app.get("/cliente/dashboard/:n_documento", async (req, res) => {
     if (citasError) throw citasError;
 
     const { data: mascotas, error: mascotasError } = await supabase
-      .from("Mascota")
+      .from("mascota")
       .select("id, nombre, Especie(Especie), Raza(Raza), fecha_nacimiento, estado")
       .eq("id_cliente", n_documento);
 
@@ -605,7 +605,7 @@ app.get("/veterinario/dashboard/:n_documento", async (req, res) => {
     const { n_documento } = req.params;
 
     const { data: veterinario, error: vetError } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .select("nombre, correoelectronico")
       .eq("n_documento", n_documento)
       .eq("id_rol", 3)
@@ -616,13 +616,13 @@ app.get("/veterinario/dashboard/:n_documento", async (req, res) => {
     }
 
     const { data: mascotas, error: mascotasError } = await supabase
-      .from("Mascota")
-      .select("id, nombre, Especie(Especie), Raza(Raza), fecha_nacimiento, estado");
+      .from("mascota")
+      .select("id, nombre, Especie(especie), Raza(raza), fecha_nacimiento, estado");
 
     if (mascotasError) throw mascotasError;
 
     const { data: citasPendientes, error: citasError } = await supabase
-      .from("Citas")
+      .from("citas")
       .select("id_Mascota, Mascota(nombre), Servicios(servicio), fecha, Descripcion")
       .order("fecha", { ascending: true });
 
@@ -651,7 +651,7 @@ app.get("/veterinario/dashboard/:n_documento", async (req, res) => {
 app.get("/mascotas", async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from("Mascota")
+      .from("mascota")
       .select(`
         id,
         nombre,
@@ -678,7 +678,7 @@ app.get("/Mascotas/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Mascota")
+      .from("mascota")
       .select(
         `id, nombre, fecha_nacimiento, Usuarios(nombre), Especie(especie), Raza(raza)`
       )
@@ -700,7 +700,7 @@ app.post("/Mascotas/Registro", async (req, res) => {
   const { nombre, id_especie, id_raza, estado, fecha_nacimiento, id_cliente } =
     req.body;
   try {
-    const { data, error } = await supabase.from("Mascota").insert([
+    const { data, error } = await supabase.from("mascota").insert([
       { nombre, id_especie, id_raza, estado, fecha_nacimiento, id_cliente },
     ]);
 
@@ -719,7 +719,7 @@ app.put("/Mascotas/Actualizar/:id", async (req, res) => {
   const { nombre, estado } = req.body;
   try {
     const { data, error } = await supabase
-      .from("Mascota")
+      .from("mascota")
       .update({ nombre, estado })
       .eq("id", id);
 
@@ -741,7 +741,7 @@ app.put("/Mascotas/Eliminar/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Mascota")
+      .from("mascota")
       .update({ estado: "Suspendido" })
       .eq("id", id);
 
@@ -767,7 +767,7 @@ app.get("/Citas/mascota/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Citas")
+      .from("citas")
       .select(
         `id, id_mascota, id_cliente, id_servicio, id_veterinario, fecha, descripcion, estado, Servicios(servicio)`
       )
@@ -788,7 +788,7 @@ app.get("/recordatorio/mascota/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Recordatorios")
+      .from("recordatorios")
       .select("fecha, descripcion, estado")
       .eq("id_mascota", id);
 
@@ -811,7 +811,7 @@ app.get("/recordatorio/mascota/:id", async (req, res) => {
 // Listar especies
 app.get("/Especies/Listado", async (req, res) => {
   try {
-    const { data, error } = await supabase.from("Especie").select("*");
+    const { data, error } = await supabase.from("especie").select("*");
     if (error) throw error;
 
     if (data.length > 0) res.json(data);
@@ -827,7 +827,7 @@ app.get("/Especies/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Especie")
+      .from("especie")
       .select("*")
       .eq("id", id)
       .single();
@@ -867,7 +867,7 @@ app.post("/Especies/Crear", upload.single("imagen"), async (req, res) => {
     }
 
     const { data, error } = await supabase
-      .from("Especie")
+      .from("especie")
       .insert([{ especie: req.body.Especie, imagen: imagenUrl }])
       .select();
 
@@ -908,7 +908,7 @@ app.put("/Especies/Actualizar/:id", upload.single("imagen"), async (req, res) =>
     }
 
     const { data, error } = await supabase
-      .from("Especie")
+      .from("especie")
       .update(updateFields)
       .eq("id", id)
       .select();
@@ -927,7 +927,7 @@ app.put("/Especies/Actualizar/:id", upload.single("imagen"), async (req, res) =>
 app.delete("/Especies/Eliminar/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const { data, error } = await supabase.from("Especie").delete().eq("id", id);
+    const { data, error } = await supabase.from("especie").delete().eq("id", id);
 
     if (error) throw error;
 
@@ -948,7 +948,7 @@ app.get("/Razas/Listado/:id_especie", async (req, res) => {
   const { id_especie } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Raza")
+      .from("raza")
       .select("*")
       .eq("id_especie", id_especie);
 
@@ -967,7 +967,7 @@ app.get("/Razas/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Raza")
+      .from("raza")
       .select("*")
       .eq("id", id)
       .single();
@@ -1010,7 +1010,7 @@ app.post("/Razas/Crear/:id_especie", upload.single("imagen"), async (req, res) =
     }
 
     const { data, error } = await supabase
-      .from("Raza")
+      .from("raza")
       .insert([{ raza, descripcion, imagen: imagenUrl, id_especie }])
       .select();
 
@@ -1051,7 +1051,7 @@ app.put("/Razas/Actualizar/:id", upload.single("imagen"), async (req, res) => {
     }
 
     const { data, error } = await supabase
-      .from("Raza")
+      .from("raza")
       .update(updateFields)
       .eq("id", id)
       .select();
@@ -1070,7 +1070,7 @@ app.put("/Razas/Actualizar/:id", upload.single("imagen"), async (req, res) => {
 app.delete("/Razas/Eliminar/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const { data, error } = await supabase.from("Raza").delete().eq("id", id);
+    const { data, error } = await supabase.from("raza").delete().eq("id", id);
 
     if (error) throw error;
 
@@ -1090,7 +1090,7 @@ app.delete("/Razas/Eliminar/:id", async (req, res) => {
 // Obtener todas las enfermedades
 app.get('/Enfermedades/Listado', async (req, res) => {
   try {
-    const { data, error } = await supabase.from("Enfermedad").select("*");
+    const { data, error } = await supabase.from("enfermedad").select("*");
     if (error) throw error;
 
     if (data.length > 0) {
@@ -1108,7 +1108,7 @@ app.post('/Enfermedades/Registrar', async (req, res) => {
   const { nombre, descripcion } = req.body;
   try {
     const { data, error } = await supabase
-      .from("Enfermedad")
+      .from("enfermedad")
       .insert([{ nombre, descripcion }]);
 
     if (error) throw error;
@@ -1126,7 +1126,7 @@ app.put('/Enfermedades/Actualizar/:nombre', async (req, res) => {
   const { descripcion } = req.body;
   try {
     const { data, error } = await supabase
-      .from("Enfermedad")
+      .from("enfermedad")
       .update({ descripcion })
       .eq("nombre", nombre);
 
@@ -1148,7 +1148,7 @@ app.delete('/Enfermedades/Eliminar/:nombre', async (req, res) => {
   const { nombre } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Enfermedad")
+      .from("enfermedad")
       .delete()
       .eq("nombre", nombre);
 
@@ -1174,7 +1174,7 @@ app.delete('/Enfermedades/Eliminar/:nombre', async (req, res) => {
 app.get('/Citas/Listado', async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from("Citas")
+      .from("citas")
       .select(`
         id,
         id_mascota,
@@ -1206,7 +1206,7 @@ app.post('/Citas/Registrar', async (req, res) => {
   const { id_mascota, id_cliente, id_servicio, id_veterinario, fecha, descripcion, estado } = req.body;
   try {
     const { data, error } = await supabase
-      .from("Citas")
+      .from("citas")
       .insert([{ id_mascota, id_cliente, id_servicio, id_veterinario, fecha, descripcion, estado }]);
 
     if (error) throw error;
@@ -1223,7 +1223,7 @@ app.get('/Citas/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Citas")
+      .from("citas")
       .select(`
         id,
         id_mascota,
@@ -1258,7 +1258,7 @@ app.put('/Citas/Actualizar/:id', async (req, res) => {
 
   try {
     const { data, error } = await supabase
-      .from("Citas")
+      .from("citas")
       .update({ descripcion, estado })
       .eq("id", id);
 
@@ -1280,7 +1280,7 @@ app.put('/Citas/Cancelar/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Citas")
+      .from("citas")
       .update({ estado: "Cancelado" })
       .eq("id", id);
 
@@ -1302,7 +1302,7 @@ app.put('/Citas/Confirmar/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Citas")
+      .from("citas")
       .update({ estado: "Confirmado" })
       .eq("id", id);
 
@@ -1324,7 +1324,7 @@ app.put('/Citas/Pendiente/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Citas")
+      .from("citas")
       .update({ estado: "Pendiente" })
       .eq("id", id);
 
@@ -1394,7 +1394,7 @@ app.get('/Mascota/recordatorio/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const { data, error } = await supabase
-      .from("Mascota")
+      .from("mascota")
       .select("id, nombre")
       .eq("id_cliente", id);
 
@@ -1447,7 +1447,7 @@ app.post('/recordatorios/guardar', async (req, res) => {
 
     // Validar cliente
     const { data: usuario, error: errorUsuario } = await supabase
-      .from("Usuarios")
+      .from("usuarios")
       .select("n_documento")
       .eq("n_documento", cliente);
 
@@ -1470,7 +1470,7 @@ app.post('/recordatorios/guardar', async (req, res) => {
 
     // Insertar recordatorio
     const { error } = await supabase
-      .from("Recordatorios")
+      .from("recordatorios")
       .insert([{ id_cliente: cliente, id_Mascota: mascota, Fecha: fecha, descripcion }]);
 
     if (error) throw error;
@@ -1487,7 +1487,7 @@ app.delete('/recordatorios/eliminar/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
-    const { error } = await supabase.from("Recordatorios").delete().eq("id", id);
+    const { error } = await supabase.from("recordatorios").delete().eq("id", id);
 
     if (error) throw error;
 
