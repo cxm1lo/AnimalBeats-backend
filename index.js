@@ -643,11 +643,6 @@ app.get("/veterinario/dashboard/:n_documento", async (req, res) => {
   }
 });
 
-
-
-
-
-js
 /*-------------------------------
 * Rutas de Gestión de Mascotas
 -------------------------------*/
