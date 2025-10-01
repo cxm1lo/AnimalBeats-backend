@@ -1188,10 +1188,10 @@ app.get('/Citas/Listado', async (req, res) => {
         fecha,
         descripcion,
         estado,
-        mascota ( nombre ),
-        usuarios!citas_id_cliente_fkey ( nombre ),
-        servicios ( servicio ),
-        veterinarios ( nombre_completo )
+        mascota ( id, nombre ),
+        usuarios: id_cliente ( n_documento, nombre ),
+        servicios ( id, servicio ),
+        veterinarios ( id, nombre_completo )
       `)
       .order("fecha", { ascending: false });
 
@@ -1237,10 +1237,10 @@ app.get('/Citas/:id', async (req, res) => {
         fecha,
         descripcion,
         estado,
-        mascota ( nombre ),
-        usuarios!Citas_id_cliente_fkey ( nombre ),
-        servicios ( servicio ),
-        veterinarios ( nombre_completo )
+        mascota ( id, nombre ),
+        usuarios: id_cliente ( n_documento, nombre ),
+        servicios ( id, servicio ),
+        veterinarios ( id, nombre_completo )
       `)
       .eq("id", id)
       .single();
@@ -1257,6 +1257,7 @@ app.get('/Citas/:id', async (req, res) => {
     res.status(500).json({ error: 'Error al buscar la cita' });
   }
 });
+
 
 // Actualizar una cita por ID
 app.put('/Citas/Actualizar/:id', async (req, res) => {
