@@ -573,7 +573,7 @@ app.get("/cliente/dashboard/:n_documento", async (req, res) => {
 
     const { data: citasPendientes, error: citasError } = await supabase
       .from("citas")
-      .select("id_Mascota, mascota(nombre), servicios(servicio), fecha, descripcion")
+      .select("id_mascota, mascota(nombre), servicios(servicio), fecha, descripcion")
       .eq("id_cliente", n_documento)
       .gte("fecha", new Date().toISOString());
 
@@ -623,7 +623,7 @@ app.get("/veterinario/dashboard/:n_documento", async (req, res) => {
 
     const { data: citasPendientes, error: citasError } = await supabase
       .from("citas")
-      .select("id_Mascota, mascota(nombre), servicios(servicio), fecha, descripcion")
+      .select("id_mascota, mascota(nombre), servicios(servicio), fecha, descripcion")
       .order("fecha", { ascending: true });
 
     if (citasError) throw citasError;
@@ -1373,7 +1373,7 @@ app.get('/recordatorios', async (req, res) => {
       .from("recordatorios")
       .select(`
         id,
-        id_Mascota,
+        id_mascota,
         mascota ( nombre ),
         id_cliente,
         fecha,
@@ -1421,7 +1421,7 @@ app.put('/recordatorios/modificar/:id', async (req, res) => {
       .from("recordatorios")
       .update({
         id_cliente: cliente,
-        id_Mascota: mascota,
+        id_mascota: mascota,
         fecha: fecha,
         descripcion: descripcion
       })
@@ -1471,7 +1471,7 @@ app.post('/recordatorios/guardar', async (req, res) => {
     // Insertar recordatorio
     const { error } = await supabase
       .from("recordatorios")
-      .insert([{ id_cliente: cliente, id_Mascota: mascota, fecha: fecha, descripcion }]);
+      .insert([{ id_cliente: cliente, id_mascota: mascota, fecha: fecha, descripcion }]);
 
     if (error) throw error;
 
