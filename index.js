@@ -171,7 +171,7 @@ app.get('/usuario/Listado', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("usuarios")
-      .select("n_documento, nombre, correoelectronico, estado, id_rol, Documento(tipo)")
+      .select("n_documento, nombre, correoelectronico, estado, id_rol, documento(tipo)")
       .neq("estado", "Suspendido");
 
     if (error) throw error;
@@ -189,7 +189,7 @@ app.get('/usuario/:n_documento', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("usuarios")
-      .select("n_documento, nombre, correoelectronico, Documento(tipo)")
+      .select("n_documento, nombre, correoelectronico, documento(tipo)")
       .eq("n_documento", n_documento)
       .maybeSingle();
 
@@ -573,7 +573,7 @@ app.get("/cliente/dashboard/:n_documento", async (req, res) => {
 
     const { data: citasPendientes, error: citasError } = await supabase
       .from("citas")
-      .select("id_Mascota, Mascota(nombre), Servicios(servicio), fecha, Descripcion")
+      .select("id_Mascota, mascota(nombre), servicios(servicio), fecha, descripcion")
       .eq("id_cliente", n_documento)
       .gte("fecha", new Date().toISOString());
 
@@ -581,7 +581,7 @@ app.get("/cliente/dashboard/:n_documento", async (req, res) => {
 
     const { data: mascotas, error: mascotasError } = await supabase
       .from("mascota")
-      .select("id, nombre, Especie(Especie), Raza(Raza), fecha_nacimiento, estado")
+      .select("id, nombre, especie(especie), raza(raza), fecha_nacimiento, estado")
       .eq("id_cliente", n_documento);
 
     if (mascotasError) throw mascotasError;
@@ -617,13 +617,13 @@ app.get("/veterinario/dashboard/:n_documento", async (req, res) => {
 
     const { data: mascotas, error: mascotasError } = await supabase
       .from("mascota")
-      .select("id, nombre, Especie(especie), Raza(raza), fecha_nacimiento, estado");
+      .select("id, nombre, especie(especie), raza(raza), fecha_nacimiento, estado");
 
     if (mascotasError) throw mascotasError;
 
     const { data: citasPendientes, error: citasError } = await supabase
       .from("citas")
-      .select("id_Mascota, Mascota(nombre), Servicios(servicio), fecha, Descripcion")
+      .select("id_Mascota, mascota(nombre), servicios(servicio), fecha, descripcion")
       .order("fecha", { ascending: true });
 
     if (citasError) throw citasError;
@@ -658,8 +658,8 @@ app.get("/mascotas", async (req, res) => {
         fecha_nacimiento,
         estado,
         id_cliente,
-        Especie(especie),
-        Raza(raza)
+        especie(especie),
+        raza(raza)
       `)
       .neq("estado", "Suspendido");
 
@@ -680,7 +680,7 @@ app.get("/Mascotas/:id", async (req, res) => {
     const { data, error } = await supabase
       .from("mascota")
       .select(
-        `id, nombre, fecha_nacimiento, Usuarios(nombre), Especie(especie), Raza(raza)`
+        `id, nombre, fecha_nacimiento, usuarios(nombre), especie(especie), raza(raza)`
       )
       .eq("id", id)
       .single();
@@ -769,7 +769,7 @@ app.get("/Citas/mascota/:id", async (req, res) => {
     const { data, error } = await supabase
       .from("citas")
       .select(
-        `id, id_mascota, id_cliente, id_servicio, id_veterinario, fecha, descripcion, estado, Servicios(servicio)`
+        `id, id_mascota, id_cliente, id_servicio, id_veterinario, fecha, descripcion, estado, servicios(servicio)`
       )
       .eq("id_mascota", id);
 
@@ -1181,10 +1181,10 @@ app.get('/Citas/Listado', async (req, res) => {
         fecha,
         descripcion,
         estado,
-        Mascota ( nombre ),
-        Usuarios!Citas_id_cliente_fkey ( nombre ),
-        Servicios ( servicio ),
-        Veterinarios ( nombre_completo )
+        mascota ( nombre ),
+        usuarios!Citas_id_cliente_fkey ( nombre ),
+        servicios ( servicio ),
+        veterinarios ( nombre_completo )
       `)
       .order("fecha", { ascending: false });
 
@@ -1230,10 +1230,10 @@ app.get('/Citas/:id', async (req, res) => {
         fecha,
         descripcion,
         estado,
-        Mascota ( nombre ),
-        Usuarios!Citas_id_cliente_fkey ( nombre ),
-        Servicios ( servicio ),
-        Veterinarios ( nombre_completo )
+        mascota ( nombre ),
+        usuarios!Citas_id_cliente_fkey ( nombre ),
+        servicios ( servicio ),
+        veterinarios ( nombre_completo )
       `)
       .eq("id", id)
       .single();
@@ -1374,9 +1374,9 @@ app.get('/recordatorios', async (req, res) => {
       .select(`
         id,
         id_Mascota,
-        Mascota ( nombre ),
+        mascota ( nombre ),
         id_cliente,
-        Fecha,
+        fecha,
         descripcion
       `);
 
@@ -1422,7 +1422,7 @@ app.put('/recordatorios/modificar/:id', async (req, res) => {
       .update({
         id_cliente: cliente,
         id_Mascota: mascota,
-        Fecha: fecha,
+        fecha: fecha,
         descripcion: descripcion
       })
       .eq("id", id);
@@ -1442,7 +1442,7 @@ app.post('/recordatorios/guardar', async (req, res) => {
 
   try {
     if (!fecha || typeof fecha !== 'string') {
-      throw new Error('Fecha inválida');
+      throw new Error('fecha inválida');
     }
 
     // Validar cliente
@@ -1471,7 +1471,7 @@ app.post('/recordatorios/guardar', async (req, res) => {
     // Insertar recordatorio
     const { error } = await supabase
       .from("recordatorios")
-      .insert([{ id_cliente: cliente, id_Mascota: mascota, Fecha: fecha, descripcion }]);
+      .insert([{ id_cliente: cliente, id_Mascota: mascota, fecha: fecha, descripcion }]);
 
     if (error) throw error;
 
