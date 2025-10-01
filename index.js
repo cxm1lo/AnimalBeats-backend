@@ -451,7 +451,6 @@ app.get("/veterinarios", async (req, res) => {
     const { data, error } = await supabase
       .from("veterinarios")
       .select("*")
-      .eq("activo", true)
       .order("creado_en", { ascending: false });
 
     if (error) throw error;
@@ -1182,7 +1181,7 @@ app.get('/Citas/Listado', async (req, res) => {
         descripcion,
         estado,
         mascota ( nombre ),
-        usuarios!Citas_id_cliente_fkey ( nombre ),
+        usuarios!citas_id_cliente_fkey ( nombre ),
         servicios ( servicio ),
         veterinarios ( nombre_completo )
       `)
