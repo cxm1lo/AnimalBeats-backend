@@ -926,17 +926,25 @@ app.put("/Especies/Actualizar/:id", upload.single("imagen"), async (req, res) =>
 app.delete("/Especies/Eliminar/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const { data, error } = await supabase.from("especie").delete().eq("id", id);
+    const { data, error } = await supabase
+      .from("especie")
+      .delete()
+      .eq("id", id)
+      .select();
 
     if (error) throw error;
 
-    if (data.length > 0) res.json({ mensaje: "Especie eliminada", data });
-    else res.status(404).json({ mensaje: "No hay especie con ese ID" });
+    if (data && data.length > 0) {
+      res.json({ mensaje: "Especie eliminada", data });
+    } else {
+      res.status(404).json({ mensaje: "No hay especie con ese ID" });
+    }
   } catch (err) {
     console.error("Error al eliminar especie:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 /*-------------------------------
 * Razas
@@ -1069,7 +1077,7 @@ app.put("/Razas/Actualizar/:id", upload.single("imagen"), async (req, res) => {
 app.delete("/Razas/Eliminar/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const { data, error } = await supabase.from("raza").delete().eq("id", id);
+    const { data, error } = await supabase.from("raza").delete().eq("id", id).select();
 
     if (error) throw error;
 
