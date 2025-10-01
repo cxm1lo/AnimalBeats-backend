@@ -364,7 +364,7 @@ app.delete('/roles/Eliminar/:id', async (req, res) => {
 /**
  * Crear veterinario
  */
-app.post("/veterinarios", upload.single("imagen"), async (req, res) => {
+app.post("/veterinarios/crear", upload.single("imagen"), async (req, res) => {
   try {
     const {
       nombre_completo,
