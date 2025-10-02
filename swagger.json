@@ -5,7 +5,7 @@
     "description": "Esta API permite llevar el control completo del proyecto AnimalBeats",
     "version": "1.0.0"
   },
-  "host": "https://animalbeats-api.onrender.com",
+  "host": "animalbeats-api.onrender.com",
   "basePath": "/",
   "schemes": [
     "https"

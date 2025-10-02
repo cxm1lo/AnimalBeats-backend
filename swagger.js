@@ -8,7 +8,7 @@ const doc={
         title:'API del proyecto ANIMALBEATS',
         description: 'Esta API permite llevar el control completo del proyecto AnimalBeats'
     },
-    host: "https://animalbeats-api.onrender.com",
+    host: "animalbeats-api.onrender.com",
     schemes: ["https"]
 }
 
