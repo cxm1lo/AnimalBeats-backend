@@ -1137,7 +1137,9 @@ app.post('/Enfermedades/Registrar', async (req, res) => {
   }
 });
 
+// =======================
 // Actualizar enfermedad por ID
+// =======================
 app.put('/Enfermedades/Actualizar/:id', async (req, res) => {
   const { id } = req.params;
   const { nombre, descripcion } = req.body;
@@ -1145,15 +1147,21 @@ app.put('/Enfermedades/Actualizar/:id', async (req, res) => {
   const idInt = parseInt(id);
   if (isNaN(idInt)) return res.status(400).json({ error: 'ID inválido' });
 
-  if (!nombre?.trim() && !descripcion?.trim()) {
-    return res.status(400).json({ error: 'Debe enviar nombre o descripción para actualizar' });
+  // Construir objeto solo con campos definidos y no vacíos
+  const updateData = {};
+  if (nombre && nombre.trim()) updateData.nombre = nombre.trim();
+  if (descripcion && descripcion.trim()) updateData.descripcion = descripcion.trim();
+
+  if (Object.keys(updateData).length === 0) {
+    return res.status(400).json({ error: 'Debe enviar al menos nombre o descripción para actualizar' });
   }
 
   try {
     const { data, error } = await supabase
       .from("enfermedad")
-      .update({ nombre, descripcion })
-      .eq("id", idInt);
+      .update(updateData)
+      .eq("id", idInt)
+      .select(); // Devuelve los datos actualizados
 
     if (error) throw error;
 
@@ -1168,7 +1176,9 @@ app.put('/Enfermedades/Actualizar/:id', async (req, res) => {
   }
 });
 
+// =======================
 // Eliminar enfermedad por ID
+// =======================
 app.delete('/Enfermedades/Eliminar/:id', async (req, res) => {
   const { id } = req.params;
   const idInt = parseInt(id);
@@ -1178,7 +1188,8 @@ app.delete('/Enfermedades/Eliminar/:id', async (req, res) => {
     const { data, error } = await supabase
       .from("enfermedad")
       .delete()
-      .eq("id", idInt);
+      .eq("id", idInt)
+      .select(); // Devuelve los datos eliminados
 
     if (error) throw error;
 
@@ -1192,6 +1203,7 @@ app.delete('/Enfermedades/Eliminar/:id', async (req, res) => {
     return res.status(500).json({ error: 'Error al eliminar la enfermedad' });
   }
 });
+
 
 
 
