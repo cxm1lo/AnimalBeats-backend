@@ -1091,7 +1091,7 @@ app.delete("/Razas/Eliminar/:id", async (req, res) => {
 
 
 // =======================
-// Rutas de Enfermedades (con Supabase pero mismas rutas)
+// Rutas de Enfermedades con ID (Supabase)
 // =======================
 
 // Obtener todas las enfermedades
@@ -1116,7 +1116,8 @@ app.post('/Enfermedades/Registrar', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("enfermedad")
-      .insert([{ nombre, descripcion }]);
+      .insert([{ nombre, descripcion }])
+      .select(); // Devuelve el ID generado
 
     if (error) throw error;
 
@@ -1127,15 +1128,16 @@ app.post('/Enfermedades/Registrar', async (req, res) => {
   }
 });
 
-// Actualizar enfermedad
-app.put('/Enfermedades/Actualizar/:nombre', async (req, res) => {
-  const { nombre } = req.params;
-  const { descripcion } = req.body;
+// Actualizar enfermedad por ID
+app.put('/Enfermedades/Actualizar/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nombre, descripcion } = req.body;
+
   try {
     const { data, error } = await supabase
       .from("enfermedad")
-      .update({ descripcion })
-      .eq("nombre", nombre);
+      .update({ nombre, descripcion })
+      .eq("id", id);
 
     if (error) throw error;
 
@@ -1150,14 +1152,14 @@ app.put('/Enfermedades/Actualizar/:nombre', async (req, res) => {
   }
 });
 
-// Eliminar enfermedad
-app.delete('/Enfermedades/Eliminar/:nombre', async (req, res) => {
-  const { nombre } = req.params;
+// Eliminar enfermedad por ID
+app.delete('/Enfermedades/Eliminar/:id', async (req, res) => {
+  const { id } = req.params;
   try {
     const { data, error } = await supabase
       .from("enfermedad")
       .delete()
-      .eq("nombre", nombre);
+      .eq("id", id);
 
     if (error) throw error;
 
@@ -1171,6 +1173,7 @@ app.delete('/Enfermedades/Eliminar/:nombre', async (req, res) => {
     return res.status(500).json({ error: 'Error al eliminar la enfermedad' });
   }
 });
+
 
 
 // =======================
