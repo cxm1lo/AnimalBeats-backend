@@ -1299,24 +1299,35 @@ app.put('/Citas/Actualizar/:id', async (req, res) => {
   const { id } = req.params;
   const { descripcion, estado } = req.body;
 
+  // Validar ID
+  const idInt = parseInt(id);
+  if (isNaN(idInt)) return res.status(400).json({ error: 'ID inválido' });
+
+  // Validar campos
+  if (!descripcion?.trim() && !estado?.trim()) {
+    return res.status(400).json({ error: 'Debe enviar descripción o estado para actualizar' });
+  }
+
   try {
     const { data, error } = await supabase
       .from("citas")
       .update({ descripcion, estado })
-      .eq("id", id);
+      .eq("id", idInt)
+      .select(); // importante usar select() para que data no sea null
 
     if (error) throw error;
 
-    if (data.length > 0) {
-      res.json({ mensaje: 'Cita actualizada correctamente', resultado: data });
+    if (data && data.length > 0) {
+      return res.json({ mensaje: 'Cita actualizada correctamente', resultado: data });
     } else {
-      res.status(404).json({ mensaje: 'Cita no encontrada para actualizar' });
+      return res.status(404).json({ mensaje: 'Cita no encontrada para actualizar' });
     }
   } catch (error) {
     console.error('Error al actualizar cita:', error);
-    res.status(500).json({ error: 'Error al actualizar la cita' });
+    return res.status(500).json({ error: 'Error al actualizar la cita' });
   }
 });
+
 
 // Cancelar cita
 app.put('/Citas/Cancelar/:id', async (req, res) => {
