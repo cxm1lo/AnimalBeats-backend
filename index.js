@@ -1094,13 +1094,17 @@ app.delete("/Razas/Eliminar/:id", async (req, res) => {
 // Rutas de Enfermedades con ID (Supabase)
 // =======================
 
+// =======================
+// Rutas de Enfermedades (Supabase) - Corregidas
+// =======================
+
 // Obtener todas las enfermedades
 app.get('/Enfermedades/Listado', async (req, res) => {
   try {
     const { data, error } = await supabase.from("enfermedad").select("*");
     if (error) throw error;
 
-    if (data.length > 0) {
+    if (data?.length > 0) {
       return res.json(data);
     }
     return res.json({ mensaje: 'No hay enfermedades registradas' });
@@ -1113,6 +1117,11 @@ app.get('/Enfermedades/Listado', async (req, res) => {
 // Registrar nueva enfermedad
 app.post('/Enfermedades/Registrar', async (req, res) => {
   const { nombre, descripcion } = req.body;
+
+  if (!nombre?.trim() || !descripcion?.trim()) {
+    return res.status(400).json({ error: 'Nombre y descripción son requeridos' });
+  }
+
   try {
     const { data, error } = await supabase
       .from("enfermedad")
@@ -1121,10 +1130,10 @@ app.post('/Enfermedades/Registrar', async (req, res) => {
 
     if (error) throw error;
 
-    res.status(201).json({ mensaje: 'Enfermedad registrada correctamente', resultado: data });
+    return res.status(201).json({ mensaje: 'Enfermedad registrada correctamente', resultado: data });
   } catch (error) {
     console.error('Error al registrar la enfermedad:', error);
-    res.status(500).json({ error: 'Error al registrar la enfermedad' });
+    return res.status(500).json({ error: 'Error al registrar la enfermedad' });
   }
 });
 
@@ -1133,15 +1142,22 @@ app.put('/Enfermedades/Actualizar/:id', async (req, res) => {
   const { id } = req.params;
   const { nombre, descripcion } = req.body;
 
+  const idInt = parseInt(id);
+  if (isNaN(idInt)) return res.status(400).json({ error: 'ID inválido' });
+
+  if (!nombre?.trim() && !descripcion?.trim()) {
+    return res.status(400).json({ error: 'Debe enviar nombre o descripción para actualizar' });
+  }
+
   try {
     const { data, error } = await supabase
       .from("enfermedad")
       .update({ nombre, descripcion })
-      .eq("id", id);
+      .eq("id", idInt);
 
     if (error) throw error;
 
-    if (data.length > 0) {
+    if (data?.length > 0) {
       return res.json({ mensaje: 'Enfermedad actualizada correctamente', resultado: data });
     } else {
       return res.status(404).json({ mensaje: 'No se encontró la enfermedad' });
@@ -1155,15 +1171,18 @@ app.put('/Enfermedades/Actualizar/:id', async (req, res) => {
 // Eliminar enfermedad por ID
 app.delete('/Enfermedades/Eliminar/:id', async (req, res) => {
   const { id } = req.params;
+  const idInt = parseInt(id);
+  if (isNaN(idInt)) return res.status(400).json({ error: 'ID inválido' });
+
   try {
     const { data, error } = await supabase
       .from("enfermedad")
       .delete()
-      .eq("id", id);
+      .eq("id", idInt);
 
     if (error) throw error;
 
-    if (data.length > 0) {
+    if (data?.length > 0) {
       return res.json({ mensaje: 'Enfermedad eliminada correctamente', resultado: data });
     } else {
       return res.status(404).json({ mensaje: 'No se encontró la enfermedad' });
@@ -1173,6 +1192,7 @@ app.delete('/Enfermedades/Eliminar/:id', async (req, res) => {
     return res.status(500).json({ error: 'Error al eliminar la enfermedad' });
   }
 });
+
 
 
 
