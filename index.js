@@ -717,37 +717,33 @@ app.put("/Mascotas/Actualizar/:id", async (req, res) => {
   const { id } = req.params;
   const { nombre, estado } = req.body;
 
-  // Validación de campos obligatorios
   if (!nombre || !estado) {
     return res.status(400).json({ error: "Faltan campos obligatorios: nombre y estado" });
   }
 
   try {
-    // Actualizar la mascota y devolver la representación completa
     const { data, error } = await supabase
       .from("mascota")
-      .update({ nombre, estado }, { returning: "representation" }) // <-- importante
+      .update({ nombre, estado }, { returning: "representation" })
       .eq("id", id);
 
-    if (error) {
-      throw error;
+    if (error) throw error;
+
+    // Siempre devuelve 200 si el registro existe
+    if (!data) {
+      return res.status(404).json({ mensaje: "No existe mascota con ese ID" });
     }
 
-    if (!data || data.length === 0) {
-      // No se encontró la mascota con ese ID
-      return res.status(404).json({ mensaje: "No hay mascota registrada con ese ID" });
-    }
-
-    // Respuesta exitosa
     res.json({
       mensaje: "Mascota actualizada correctamente",
-      data: data[0], // devolver solo el registro actualizado
+      data: data[0] || null, // null si no hay cambios, pero 200
     });
   } catch (err) {
     console.error("Error al actualizar mascota:", err.message || err);
     res.status(500).json({ error: "Error al actualizar mascota" });
   }
 });
+
 
 
 // Eliminar mascota (suspender)
