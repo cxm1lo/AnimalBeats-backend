@@ -172,6 +172,9 @@
           "201": {
             "description": "Created"
           },
+          "400": {
+            "description": "Bad Request"
+          },
           "500": {
             "description": "Internal Server Error"
           }
@@ -205,9 +208,6 @@
                 },
                 "id_rol": {
                   "example": "any"
-                },
-                "n_documento_original": {
-                  "example": "any"
                 }
               }
             }
@@ -216,9 +216,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          },
-          "404": {
-            "description": "Not Found"
           },
           "500": {
             "description": "Internal Server Error"
@@ -282,9 +279,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          },
-          "404": {
-            "description": "Not Found"
           },
           "500": {
             "description": "Internal Server Error"
@@ -350,16 +344,13 @@
           "200": {
             "description": "OK"
           },
-          "404": {
-            "description": "Not Found"
-          },
           "500": {
             "description": "Internal Server Error"
           }
         }
       }
     },
-    "/veterinarios": {
+    "/veterinarios/crear": {
       "post": {
         "description": "",
         "parameters": [
@@ -399,7 +390,9 @@
             "description": "Internal Server Error"
           }
         }
-      },
+      }
+    },
+    "/veterinarios": {
       "get": {
         "description": "",
         "responses": {
@@ -631,8 +624,8 @@
           "200": {
             "description": "OK"
           },
-          "404": {
-            "description": "Not Found"
+          "400": {
+            "description": "Bad Request"
           },
           "500": {
             "description": "Internal Server Error"
@@ -654,9 +647,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          },
-          "404": {
-            "description": "Not Found"
           },
           "500": {
             "description": "Internal Server Error"
@@ -767,8 +757,8 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": "Created"
+          "200": {
+            "description": "OK"
           },
           "500": {
             "description": "Internal Server Error"
@@ -1017,18 +1007,21 @@
           "201": {
             "description": "Created"
           },
+          "400": {
+            "description": "Bad Request"
+          },
           "500": {
             "description": "Internal Server Error"
           }
         }
       }
     },
-    "/Enfermedades/Actualizar/{nombre}": {
+    "/Enfermedades/Actualizar/{id}": {
       "put": {
         "description": "",
         "parameters": [
           {
-            "name": "nombre",
+            "name": "id",
             "in": "path",
             "required": true,
             "type": "string"
@@ -1039,6 +1032,9 @@
             "schema": {
               "type": "object",
               "properties": {
+                "nombre": {
+                  "example": "any"
+                },
                 "descripcion": {
                   "example": "any"
                 }
@@ -1050,6 +1046,9 @@
           "200": {
             "description": "OK"
           },
+          "400": {
+            "description": "Bad Request"
+          },
           "404": {
             "description": "Not Found"
           },
@@ -1059,12 +1058,12 @@
         }
       }
     },
-    "/Enfermedades/Eliminar/{nombre}": {
+    "/Enfermedades/Eliminar/{id}": {
       "delete": {
         "description": "",
         "parameters": [
           {
-            "name": "nombre",
+            "name": "id",
             "in": "path",
             "required": true,
             "type": "string"
@@ -1073,6 +1072,9 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
           },
           "404": {
             "description": "Not Found"
@@ -1106,13 +1108,13 @@
             "schema": {
               "type": "object",
               "properties": {
-                "id_Mascota": {
+                "id_mascota": {
                   "example": "any"
                 },
                 "id_cliente": {
                   "example": "any"
                 },
-                "id_Servicio": {
+                "id_servicio": {
                   "example": "any"
                 },
                 "id_veterinario": {
@@ -1121,7 +1123,10 @@
                 "fecha": {
                   "example": "any"
                 },
-                "Descripcion": {
+                "descripcion": {
+                  "example": "any"
+                },
+                "estado": {
                   "example": "any"
                 }
               }
@@ -1178,26 +1183,41 @@
             "schema": {
               "type": "object",
               "properties": {
-                "id_Mascota": {
+                "descripcion": {
                   "example": "any"
                 },
-                "id_cliente": {
-                  "example": "any"
-                },
-                "id_Servicio": {
-                  "example": "any"
-                },
-                "id_veterinario": {
-                  "example": "any"
-                },
-                "fecha": {
-                  "example": "any"
-                },
-                "Descripcion": {
+                "estado": {
                   "example": "any"
                 }
               }
             }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/Citas/Cancelar/{id}": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
           }
         ],
         "responses": {
@@ -1213,8 +1233,32 @@
         }
       }
     },
-    "/Citas/Eliminar/{id}": {
-      "delete": {
+    "/Citas/Confirmar/{id}": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/Citas/Pendiente/{id}": {
+      "put": {
         "description": "",
         "parameters": [
           {
