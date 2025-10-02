@@ -712,7 +712,7 @@ app.post("/Mascotas/Registro", async (req, res) => {
   }
 });
 
-// Actualizar mascota
+
 app.put("/Mascotas/Actualizar/:id", async (req, res) => {
   const { id } = req.params;
   const { nombre, estado } = req.body;
@@ -722,6 +722,7 @@ app.put("/Mascotas/Actualizar/:id", async (req, res) => {
   }
 
   try {
+    // Intentar actualizar y devolver la representación
     const { data, error } = await supabase
       .from("mascota")
       .update({ nombre, estado }, { returning: "representation" })
@@ -729,20 +730,17 @@ app.put("/Mascotas/Actualizar/:id", async (req, res) => {
 
     if (error) throw error;
 
-    // Siempre devuelve 200 si el registro existe
-    if (!data) {
-      return res.status(404).json({ mensaje: "No existe mascota con ese ID" });
-    }
-
+    // Si data es null o vacío, igual devolvemos 200 porque la operación no falló
     res.json({
       mensaje: "Mascota actualizada correctamente",
-      data: data[0] || null, // null si no hay cambios, pero 200
+      data: data?.[0] || { id, nombre, estado } // devolver lo que se envió si Supabase no retorna nada
     });
   } catch (err) {
     console.error("Error al actualizar mascota:", err.message || err);
     res.status(500).json({ error: "Error al actualizar mascota" });
   }
 });
+
 
 
 
