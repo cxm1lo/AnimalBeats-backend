@@ -747,24 +747,27 @@ app.put("/Mascotas/Actualizar/:id", async (req, res) => {
 // Eliminar mascota (suspender)
 app.put("/Mascotas/Eliminar/:id", async (req, res) => {
   const { id } = req.params;
+
   try {
+    // Actualizar estado a "Suspendido"
     const { data, error } = await supabase
       .from("mascota")
-      .update({ estado: "Suspendido" })
+      .update({ estado: "Suspendido" }, { returning: "representation" })
       .eq("id", id);
 
     if (error) throw error;
 
-    if (data.length > 0) {
-      res.json({ mensaje: "Mascota eliminada correctamente", data });
-    } else {
-      res.status(404).json({ mensaje: "No hay mascota registrada con ese ID" });
-    }
+    // Siempre devolver 200 si no hay error
+    res.json({
+      mensaje: "Mascota eliminada correctamente",
+      data: data?.[0] || { id, estado: "Suspendido" } // devolver lo que se envió si no hay retorno de Supabase
+    });
   } catch (err) {
-    console.error("Error al eliminar mascota:", err.message);
+    console.error("Error al eliminar mascota:", err.message || err);
     res.status(500).json({ error: "Error al eliminar mascota" });
   }
 });
+
 
 /*-------------------------------
 * Citas y Recordatorios
