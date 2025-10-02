@@ -1478,8 +1478,14 @@ app.post('/recordatorios/guardar', async (req, res) => {
 
     // Insertar recordatorio
     const { error } = await supabase
-      .from("recordatorios")
-      .insert([{ id_cliente: cliente, id_mascota: mascota, fecha: fecha, descripcion }]);
+    .from("recordatorios")
+    .insert([{
+      id_cliente: cliente,
+      id_mascota: mascota,
+      fecha: fecha,
+      descripcion,
+      estado: "activo"
+    }]);
 
     if (error) throw error;
 
