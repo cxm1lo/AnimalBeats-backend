@@ -1260,6 +1260,7 @@ app.post('/Citas/Registrar', async (req, res) => {
   }
 });
 
+
 // Obtener una cita por ID
 app.get('/Citas/:id', async (req, res) => {
   const { id } = req.params;
