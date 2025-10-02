@@ -1444,9 +1444,10 @@ app.put('/recordatorios/modificar/:id', async (req, res) => {
   }
 });
 
-// Guardar un nuevo recordatorio
 app.post('/recordatorios/guardar', async (req, res) => {
   const { cliente, mascota, fecha, descripcion } = req.body;
+
+  console.log("📩 Datos recibidos en backend:", req.body);
 
   try {
     if (!fecha || typeof fecha !== 'string') {
@@ -1459,8 +1460,10 @@ app.post('/recordatorios/guardar', async (req, res) => {
       .select("n_documento")
       .eq("n_documento", cliente);
 
+    console.log("🔎 Validación cliente:", usuario, errorUsuario);
+
     if (errorUsuario) throw errorUsuario;
-    if (usuario.length === 0) {
+    if (!usuario || usuario.length === 0) {
       return res.status(400).json({ error: 'Cliente no existe' });
     }
 
@@ -1471,30 +1474,35 @@ app.post('/recordatorios/guardar', async (req, res) => {
       .eq("id", mascota)
       .eq("id_cliente", cliente);
 
+    console.log("🔎 Validación mascota:", mascotaBD, errorMascota);
+
     if (errorMascota) throw errorMascota;
-    if (mascotaBD.length === 0) {
+    if (!mascotaBD || mascotaBD.length === 0) {
       return res.status(400).json({ error: 'Mascota no coincide con cliente' });
     }
 
     // Insertar recordatorio
     const { error } = await supabase
-    .from("recordatorios")
-    .insert([{
-      id_cliente: cliente,
-      id_mascota: mascota,
-      fecha: fecha,
-      descripcion,
-      estado: "activo"
-    }]);
+      .from("recordatorios")
+      .insert([{
+        id_cliente: cliente,
+        id_mascota: mascota,
+        fecha,
+        descripcion,
+        estado: "activo"
+      }]);
+
+    console.log("✅ Insert result:", error);
 
     if (error) throw error;
 
     res.status(201).json({ message: 'Recordatorio guardado correctamente' });
   } catch (error) {
-    console.error('Error al guardar recordatorio:', error);
-    res.status(500).json({ error: 'Error al guardar el recordatorio' });
+    console.error('❌ Error al guardar recordatorio:', error);
+    res.status(500).json({ error: error.message || 'Error al guardar el recordatorio' });
   }
 });
+
 
 // Eliminar recordatorio
 app.delete('/recordatorios/eliminar/:id', async (req, res) => {
